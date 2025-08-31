@@ -1,0 +1,400 @@
+@font-face {
+    font-family: 'Rocket Command';
+    src: url('fonts/rocket-command-font/RocketCommand-OG5D8.otf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Rocket Command';
+    src: url('fonts/rocket-command-font/RocketCommandItalic-j9Jel.otf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+}
+
+body {
+  font-family: 'Fira Code', monospace;
+  background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  padding: 20px;
+  color: #fff;
+}
+
+h1 {
+  margin-top: 20px;
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+  font-family: 'Rocket Command', sans-serif;
+  font-style: normal;
+  font-size: 45px;
+}
+
+#finalStats {
+  font-size: 2rem;
+  font-weight: normal;
+  text-align: center;
+  margin: 0;
+}
+
+/* ===== TYPING STYLING ===== */
+#sentence {
+  font-size: 35px;
+  margin: 20px 0;
+  max-width: 90%;
+  text-align: center;
+  line-height: 1.5;
+  letter-spacing: 1px;
+}
+
+#sentence div {
+  white-space: nowrap;
+  margin-bottom: 10px;
+}
+
+#sentence span {
+  font-family: 'Fira Code', monospace;
+  font-size: 30px;
+  display: inline-block;
+  margin-right: 1px;
+  transition: color 0.2s;
+}
+
+#sentence span.correct {
+  color: #4caf50; /* green for correct */
+}
+
+#sentence span.incorrect {
+  color: #f44336; /* bright red for mistakes */
+}
+
+#sentence span.extra {
+  color: rgba(244, 67, 54, 0.5); /* faded red for extra letters */
+  opacity: 0;
+  animation: fadeExtra 0.3s forwards;
+}
+
+/* highlight current letter */
+#sentence span.current {
+  border-left: 2px solid #fff; /* cursor before current letter */
+  animation: blink 1s step-start infinite;
+  padding-left: 1px;
+}
+
+/* ===== PROGRESS BAR ===== */
+#progressContainer {
+  width: 80%;
+  height: 50px;
+  background: rgba(167, 146, 146, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+#timeProgress {
+  height: 100%;
+  width: 100%;
+  background: #1de84d;
+  transition: width 0.2s linear;
+}
+
+#timer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 40px;
+  pointer-events: none;
+  font-family: 'Rocket Command', sans-serif;
+  font-style: normal;
+}
+
+#wrapleaderboard {
+  width: 20%;
+  height: 250px;
+  background: rgba(167, 146, 146, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  margin: 0 auto 20px;   /* centers the box */
+  padding: 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+#wrapleaderboard h2 {
+  margin: 10px 0;
+}
+
+#wrapleaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#wrapleaderboard th,
+#wrapleaderboard td {
+  text-align: center;
+  padding: 6px;
+}
+
+/* make the body scrollable */
+#wrapleaderboard thead {
+  background: rgba(0,0,0,0.1); /* optional: gives header contrast */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+#wrapleaderboard tbody {
+  display: block;
+  max-height: 180px;   /* adjust so it fits within 250px box */
+  overflow-y: auto;
+}
+
+#wrapleaderboard thead, 
+#wrapleaderboard tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed; /* keeps columns aligned */
+}
+
+#wpm {
+  font-size: 22px;
+  margin-top: 15px;
+}
+
+span {
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+/* ===== BUTTONS ===== */
+#settings {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+/* timer buttons */
+#settings button {
+  background: linear-gradient(180deg, #1f4a59, #163944);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px 22px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.25);
+  transition: 
+    transform 0.15s ease, 
+    box-shadow 0.15s ease,
+    background 0.2s ease;
+}
+
+/* hover effect */
+#settings button:hover {
+  background: linear-gradient(180deg, #25586a, #1a4250);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.35);
+}
+
+/* active (pressed) effect */
+#settings button:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0,0,0,.4);
+}
+
+/* focus accessibility */
+#settings button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #2f79bf, 0 6px 14px rgba(0,0,0,.25);
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes blink {
+  0%, 50% { border-color: #fff; }
+  50.01%, 100% { border-color: transparent; }
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeExtra {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#modeButtons { display:flex; gap:12px; justify-content:center; margin:10px 0 0; }
+#modeButtons button.active {
+  background: linear-gradient(180deg, #2f79bf, #2a6aa7);
+  color:#fff;
+}
+
+#settings button.active {
+  background: linear-gradient(180deg, #2f79bf, #2a6aa7);
+  color: #fff;
+}
+
+/* Game-over panel */
+#overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* Centered modal */
+#gameOverScreen {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18));
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 16px;
+  padding: 22px 28px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 14px 36px rgba(0,0,0,.45);
+  backdrop-filter: blur(10px);
+}
+
+#gameOverScreen h2 {
+  margin: 0 0 12px;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+}
+
+#finalStats {
+  font-size: clamp(16px, 2.2vw, 22px);
+  font-weight: 600;
+  margin: 0 0 18px;
+}
+
+/* Restart button */
+#restartBtn {
+  --btn: #2f79bf;
+  --btn-hover: #3b8ad6;
+  --btn-press: #2a6aa7;
+  --ring: #9ad1ff;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  width: clamp(180px, 40vw, 260px);
+  padding: 12px 22px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .3px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.12)),
+    var(--btn);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.35);
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease;
+}
+
+#restartBtn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.10)),
+    var(--btn-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.45);
+}
+
+#restartBtn:active {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.16)),
+    var(--btn-press);
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0,0,0,.45);
+}
+
+#restartBtn:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent),
+    0 8px 18px rgba(0,0,0,.35);
+}
+
+#restartBtn .btn-icon {
+  font-size: 1.2em;
+  line-height: 0;
+}
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  #restartBtn{ transition: none; }
+}
+
+.modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+  }
+  #usernameInput {
+    width: 90%;
+    padding: 10px;
+    margin: 15px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  #usernameSubmit {
+    padding: 10px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #usernameSubmit:hover {
+    background: #0056b3;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }

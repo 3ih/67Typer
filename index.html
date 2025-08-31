@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>67Typer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>6️⃣7️⃣Typer</h1>
+
+<div id="settings">
+  <button onclick="setTime(10)">⏱️10 Seconds</button>
+  <button onclick="setTime(30)">⏱️30 Seconds</button>
+  <button onclick="setTime(67)">⏱️67 Seconds</button>
+  <div id="modeButtons">
+  <button id="modeWordsBtn" onclick="setMode('words')" class="active">Words</button>
+  <button id="modeSentencesBtn" onclick="setMode('sentences')">Sentences</button>
+</div>
+</div>
+
+<div id="progressContainer">
+  <div id="timeProgress"></div>
+  <span id="timer">10</span>
+</div>
+</div>
+<div id="sentence"></div>
+
+<div id="overlay" style="display:none;">
+  <div id="gameOverScreen">
+    <h2>Time's Up!</h2>
+    <p id="finalStats"></p>
+    <button id="restartBtn" onclick="restartGame()">
+      <span class="btn-icon">⟲</span>
+      Restart
+    </button>
+  </div>
+</div>
+
+<div id="wrapleaderboard">
+  <h2>🏆 Leaderboard</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Best WPM</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboard"></tbody>
+  </table>
+</div>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>
+
+<div id="usernameModal" class="modal">
+  <div class="modal-content">
+    <h2></h2>
+     <input id="usernameInput" type="text" maxlength="12" placeholder="Enter username" />
+    <button id="usernameSubmit">Submit</button>
+  </div>
+</div>
