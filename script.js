@@ -1,3 +1,5 @@
+const API_BASE = 'https://six7typing-server.onrender.com';
+console.log('API_BASE =', API_BASE);
 import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
 document.addEventListener("DOMContentLoaded", () => {
@@ -373,4 +375,5 @@ function saveUsername() {
   window.manualRestart = manualRestart;
   window.restartGame = restartGame;
   window.setMode = setMode; // expose for mode buttons
+
 });
