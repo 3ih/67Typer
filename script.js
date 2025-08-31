@@ -1,3 +1,4 @@
+const API_BASE = 'https://six7typing-server.onrender.com';
 import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
 document.addEventListener("DOMContentLoaded", () => {
