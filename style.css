@@ -307,3 +307,103 @@ span { display: inline-block; transition: all 0.2s ease; }
 @keyframes fadeExtra {
   from { opacity: 0; } to { opacity: 1; }
 }
+
+.container {
+  width: min(1100px, 94vw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Title row with badges */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 18px;
+}
+.title-row .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #4aa0ff, #206bcb);
+  box-shadow: 0 8px 18px rgba(0,0,0,.35);
+  font: 700 32px/1 "Rocket Command", "Fira Code", monospace;
+  color: #eaf4ff;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+.title-row .title-word {
+  font-family: "Rocket Command", system-ui, sans-serif;
+  font-size: 48px;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 8px rgba(0,0,0,.4);
+}
+
+/* One-row settings bar */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px 22px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+}
+.settings-row .time-buttons,
+.settings-row .mode-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Progress bar wide & centered */
+#progressContainer {
+  width: min(1200px, 95vw);
+  height: 60px;
+  border-radius: 8px;
+  margin: 10px auto 26px;
+}
+#timer { font-size: 48px; }
+
+/* Leaderboard as a centered card like the screenshot */
+.card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  box-shadow: 0 16px 32px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+}
+#wrapleaderboard {
+  width: clamp(520px, 56vw, 840px);
+  height: 420px;
+  padding: 18px;
+}
+#wrapleaderboard h2 {
+  font-family: 'Fira Code', monospace;
+  font-weight: 800;
+  letter-spacing: .5px;
+  margin: 6px 0 12px;
+}
+#wrapleaderboard thead tr {
+  background: rgba(0,0,0,0.25);
+}
+#wrapleaderboard th {
+  font-weight: 800;
+}
+
+/* Sentence spacing so it sits above the leaderboard nicely */
+#sentence {
+  margin: 6px 0 24px;
+}
+
+/* Small screens: keep it clean */
+@media (max-width: 640px) {
+  .title-row .title-word { font-size: 36px; }
+  #timer { font-size: 40px; }
+  #wrapleaderboard { width: 92vw; height: 360px; }
+}
+
