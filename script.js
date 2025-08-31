@@ -1,9 +1,10 @@
 const API_BASE = 'https://six7typing-server.onrender.com';
 console.log('API_BASE =', API_BASE);
+
 import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
-document.addEventListener("DOMContentLoaded", () => {
 
+document.addEventListener("DOMContentLoaded", () => {
   let sentence = "";
   let currentIndex = 0;
   let timeLimit = 10;
@@ -26,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
   /* === MODE TOGGLE === */
   let mode = 'words'; // 'words' | 'sentences'
 
-  /* === Mode button highlight (NEW) === */
   function updateModeButtonsActive() {
     const w = document.getElementById('modeWordsBtn');
     const s = document.getElementById('modeSentencesBtn');
@@ -35,16 +35,15 @@ document.addEventListener("DOMContentLoaded", () => {
       s.classList.toggle('active', mode === 'sentences');
     }
   }
-  /* ================================== */
 
   function setMode(next) {
     mode = next === 'sentences' ? 'sentences' : 'words';
-    updateModeButtonsActive();     // NEW: keep mode button highlighted
+    updateModeButtonsActive();
     restartGame();
   }
   /* === END MODE TOGGLE === */
 
-  /* === create an overlay to blur the page behind the username modal === */
+  /* === username modal overlay === */
   const userOverlay = document.createElement('div');
   userOverlay.id = 'userOverlay';
   Object.assign(userOverlay.style, {
@@ -62,7 +61,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.body.appendChild(userOverlay);
   userOverlay.appendChild(modal);
-  /* === END NEW === */
 
   if (!username) {
     userOverlay.style.display = "flex";
@@ -73,32 +71,20 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.style.display = "none";
   }
 
-function saveUsername() {
-  const value = usernameInput.value.trim();
-
-  if (!value) {
-    alert("Please enter a username!");
-    usernameInput.focus();
-    return;
+  function saveUsername() {
+    const value = usernameInput.value.trim();
+    if (!value) { alert("Please enter a username!"); usernameInput.focus(); return; }
+    if (value.length > 12) { alert("Username must be 12 characters or fewer."); usernameInput.focus(); return; }
+    localStorage.setItem('username', value);
+    username = value;
+    modal.style.display = "none";
+    userOverlay.style.display = "none";
   }
-
-  if (value.length > 12) {
-    alert("Username must be 12 characters or fewer.");
-    usernameInput.focus();
-    return;
-  }
-
-  localStorage.setItem('username', value);
-  username = value;
-  modal.style.display = "none";
-  userOverlay.style.display = "none";
-}
 
   usernameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") saveUsername();
   });
 
-  // make the modal's Submit button work on click
   const usernameSubmitBtn = modal.querySelector('button');
   if (usernameSubmitBtn) {
     usernameSubmitBtn.addEventListener('click', (e) => {
@@ -115,7 +101,7 @@ function saveUsername() {
     }
   }, true);
 
-  /* === Time button highlight (NEW) === */
+  /* === Time buttons highlight === */
   const timeButtons = document.querySelectorAll('#settings button');
   function updateTimeButtonsActive(seconds) {
     timeButtons.forEach(btn => {
@@ -123,10 +109,8 @@ function saveUsername() {
       btn.classList.toggle('active', txt.includes(String(seconds)));
     });
   }
-  /* ================================== */
 
   function generateSentence() {
-    // branch by mode
     if (mode === 'words') {
       sentence = "";
       let lastWord = "";
@@ -140,7 +124,6 @@ function saveUsername() {
       }
       sentence = sentence.trim();
     } else {
-      // sentences mode
       sentence = sentenceBank[Math.floor(Math.random() * sentenceBank.length)];
     }
 
@@ -159,7 +142,6 @@ function saveUsername() {
           if (isFirstLine && wIdx === 0 && i === 0) span.classList.add('current');
           lineContainer.appendChild(span);
         });
-        // add spaces between words EXCEPT the true last word of the whole sentence
         const isLastInThisLine = wIdx === lineWords.length - 1;
         const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
         if (shouldAddSpace) {
@@ -179,8 +161,8 @@ function saveUsername() {
   function setTime(seconds) {
     timeLimit = seconds;
     timerEl.textContent = `${timeLimit}`;
-    updateTimeButtonsActive(seconds); // keep chosen time highlighted
-    updateModeButtonsActive();        // NEW: keep mode button highlighted
+    updateTimeButtonsActive(seconds);
+    updateModeButtonsActive();
     restartGame();
   }
 
@@ -202,67 +184,69 @@ function saveUsername() {
     }, 1000);
   }
 
+  // ===== Leaderboard API helpers (Render) =====
   async function submitScore(wpm) {
-    if (!username || wpm > 200) return;
-    await fetch('/scores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: username, score: wpm })
-    });
-    loadScores();
+    if (!username) return;
+    const score = Math.round(Number(wpm));
+    if (!Number.isFinite(score) || score < 0 || score > 200) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: username.trim(), score })
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('POST /scores failed:', res.status, text);
+        return;
+      }
+      await loadScores();
+    } catch (err) {
+      console.error('POST /scores error:', err);
+    }
   }
 
   async function loadScores() {
     try {
-      const res = await fetch('/scores');
-      if (!res.ok) throw new Error("Failed to fetch scores");
+      const res = await fetch(`${API_BASE}/scores?limit=10`);
+      if (!res.ok) throw new Error(`GET /scores → ${res.status}`);
+      const scores = await res.json();
 
-      let scores = await res.json();
       const tbody = document.getElementById('leaderboard');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
-      // sort highest first
-      scores.sort((a, b) => b.score - a.score);
-
-      // keep only top 10
-      const topScores = scores.slice(0, 10);
-
-      // build rows
-      topScores.forEach(s => {
-        const row = document.createElement("tr");
-        const nameCell = document.createElement("td");
-        const scoreCell = document.createElement("td");
-
-        nameCell.textContent = s.name;
-        scoreCell.textContent = s.score;
-
-        row.appendChild(nameCell);
-        row.appendChild(scoreCell);
-        tbody.appendChild(row);
+      (scores || []).forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${String(s.name)}</td><td>${Number(s.score)}</td>`;
+        tbody.appendChild(tr);
       });
     } catch (err) {
-      console.error("Error loading scores:", err);
+      console.error('Error loading scores:', err);
     }
   }
+  // ============================================
 
-  function endGame() {
+  // Make endGame async so we can await the POST and refresh
+  async function endGame() {
     if (!gameActive) return;
     gameActive = false;
     clearInterval(timer);
 
-    const wpm = Math.round((correctChars/5)/((Date.now()-startTime)/60000));
+    const wpm = Math.round((correctChars / 5) / ((Date.now() - startTime) / 60000));
 
-    // compute accuracy safely from DOM to guarantee 0–100%
+    // accuracy from DOM (0–100%)
     const correctCount = sentenceEl.querySelectorAll('span.correct').length;
     const gradedCount  = sentenceEl.querySelectorAll('span.correct, span.incorrect').length;
     const accuracy = gradedCount ? Math.round((correctCount / gradedCount) * 100) : 0;
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
-    document.getElementById('overlay').style.display = 'flex'; // show blur/modal
-    submitScore(wpm);
+    document.getElementById('overlay').style.display = 'flex';
+
+    await submitScore(wpm);
   }
 
-  // hides overlay instead of gameOverScreen
   function restartGame() {
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.style.display = 'none';
@@ -276,16 +260,14 @@ function saveUsername() {
     timerEl.textContent = `${timeLimit}`;
     clearInterval(timer);
 
-    updateModeButtonsActive();  // NEW: keep mode button highlighted after reset
+    updateModeButtonsActive();
   }
 
-  // just delegates to restartGame
   function manualRestart() {
     restartGame();
   }
 
   document.addEventListener('keydown', (e) => {
-    // block game typing while username modal is visible
     if (modal.style.display !== "none") return;
 
     const spans = sentenceEl.querySelectorAll('span');
@@ -296,16 +278,12 @@ function saveUsername() {
       startTimer();
     } else if (!gameActive) return;
 
-    // ignore all non-character keys except Backspace and Space
     if (e.key.length !== 1 && e.key !== 'Backspace' && e.key !== ' ') return;
 
     e.preventDefault();
     const currentChar = spans[currentIndex]?.textContent;
-
-    // safety: if we've somehow finished, bail
     if (currentChar === undefined) return;
 
-    // backspace properly undoes counters so accuracy can't exceed 100%
     if (e.key === "Backspace") {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
@@ -327,7 +305,6 @@ function saveUsername() {
       return;
     }
 
-    // handle spaces
     if (currentChar === '\u00A0') {
       if (e.key === ' ') {
         spans[currentIndex].classList.add('correct');
@@ -336,7 +313,6 @@ function saveUsername() {
         if (currentIndex < spans.length) {
           spans[currentIndex].classList.add('current');
         } else {
-          // AUTO-ADVANCE on last character
           const timeLeft = parseInt(timerEl.textContent, 10) || 0;
           if (gameActive && timeLeft > 0) generateSentence();
         }
@@ -344,7 +320,6 @@ function saveUsername() {
       return;
     }
 
-    // normal characters
     totalTyped++;
     if (e.key === currentChar) {
       spans[currentIndex].classList.add('correct');
@@ -358,7 +333,6 @@ function saveUsername() {
     if (currentIndex < spans.length) {
       spans[currentIndex].classList.add('current');
     } else {
-      // AUTO-ADVANCE as soon as the final character is typed
       const timeLeft = parseInt(timerEl.textContent, 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
     }
@@ -367,13 +341,11 @@ function saveUsername() {
   generateSentence();
   loadScores();
 
-  // initialize selected button highlights on first load
   updateTimeButtonsActive(timeLimit);
-  updateModeButtonsActive();        // NEW: set initial mode button state
+  updateModeButtonsActive();
 
   window.setTime = setTime;
   window.manualRestart = manualRestart;
   window.restartGame = restartGame;
-  window.setMode = setMode; // expose for mode buttons
-
+  window.setMode = setMode;
 });
