@@ -1,66 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>67Typer</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="description" content="67Typer — fast typing game with a live leaderboard." />
+  <title>67Typer</title>
+
+  <!-- Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Favicon (optional; add a real file or remove) -->
+  <link rel="icon" href="favicon.ico" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <noscript>
+    <p style="padding:12px;background:#fff3cd;color:#664d03;margin:0;">
+      JavaScript is required to play 67Typer.
+    </p>
+  </noscript>
 
-<h1>6️⃣7️⃣Typer</h1>
+  <header>
+    <h1>6️⃣7️⃣Typer</h1>
+  </header>
 
-<div id="settings">
-  <button onclick="setTime(10)">⏱️10 Seconds</button>
-  <button onclick="setTime(30)">⏱️30 Seconds</button>
-  <button onclick="setTime(67)">⏱️67 Seconds</button>
-  <div id="modeButtons">
-  <button id="modeWordsBtn" onclick="setMode('words')" class="active">Words</button>
-  <button id="modeSentencesBtn" onclick="setMode('sentences')">Sentences</button>
-</div>
-</div>
+  <main>
+    <!-- Settings -->
+    <section id="settings" aria-label="Game settings">
+      <div class="settings-row">
+        <div class="time-buttons" role="group" aria-label="Time limits">
+          <button type="button" onclick="setTime(10)">⏱️ 10 Seconds</button>
+          <button type="button" onclick="setTime(30)">⏱️ 30 Seconds</button>
+          <button type="button" onclick="setTime(67)">⏱️ 67 Seconds</button>
+        </div>
 
-<div id="progressContainer">
-  <div id="timeProgress"></div>
-  <span id="timer">10</span>
-</div>
-</div>
-<div id="sentence"></div>
+        <div id="modeButtons" class="mode-buttons" role="group" aria-label="Mode">
+          <button type="button" id="modeWordsBtn" onclick="setMode('words')" class="active">Words</button>
+          <button type="button" id="modeSentencesBtn" onclick="setMode('sentences')">Sentences</button>
+        </div>
+      </div>
+    </section>
 
-<div id="overlay" style="display:none;">
-  <div id="gameOverScreen">
-    <h2>Time's Up!</h2>
-    <p id="finalStats"></p>
-    <button id="restartBtn" onclick="restartGame()">
-      <span class="btn-icon">⟲</span>
-      Restart
-    </button>
-  </div>
-</div>
+    <!-- Timer / progress -->
+    <section id="progressContainer" aria-label="Timer">
+      <div id="timeProgress" aria-hidden="true"></div>
+      <span id="timer" aria-live="polite">10</span>
+    </section>
 
-<div id="wrapleaderboard">
-  <h2>🏆 Leaderboard</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Username</th>
-        <th>Best WPM</th>
-      </tr>
-    </thead>
-    <tbody id="leaderboard"></tbody>
-  </table>
-</div>
+    <!-- Sentence area -->
+    <section id="typingArea" aria-label="Typing area">
+      <div id="sentence" aria-live="polite"></div>
+    </section>
 
-<script type="module" src="script.js"></script>
+    <!-- Overlay + game over -->
+    <div id="overlay" style="display:none;" aria-hidden="true">
+      <div id="gameOverScreen" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+        <h2 id="gameOverTitle">Time's Up!</h2>
+        <p id="finalStats" aria-live="polite"></p>
+        <button type="button" id="restartBtn" onclick="restartGame()">
+          <span class="btn-icon" aria-hidden="true">⟲</span>
+          Restart
+        </button>
+      </div>
+    </div>
 
+    <!-- Leaderboard -->
+    <section id="wrapleaderboard" aria-label="Leaderboard">
+      <h2>🏆 Leaderboard</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Best WPM</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard"></tbody>
+      </table>
+    </section>
+
+    <!-- Username Modal (script moves this into an overlay container) -->
+    <div id="usernameModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="usernameTitle" style="display:none;">
+      <div class="modal-content">
+        <h2 id="usernameTitle">Enter your username</h2>
+        <input
+          id="usernameInput"
+          type="text"
+          maxlength="12"
+          placeholder="Enter username"
+          autocomplete="username"
+          aria-label="Username"
+        />
+        <button type="button" id="usernameSubmit">Submit</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Load your ES module last; `?v=1` busts cache if you update often -->
+  <script type="module" src="./script.js?v=1"></script>
 </body>
 </html>
-
-<div id="usernameModal" class="modal">
-  <div class="modal-content">
-    <h2></h2>
-     <input id="usernameInput" type="text" maxlength="12" placeholder="Enter username" />
-    <button id="usernameSubmit">Submit</button>
-  </div>
-</div>
