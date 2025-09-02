@@ -45,12 +45,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---- Sentence rendering ----
+  // ---------- Rendering helpers ----------
   function createCharSpan(char, isCurrent = false) {
     const span = document.createElement('span');
-    span.textContent = char;
+    // Display NBSP for layout, but expect a REAL space when typing
+    const isSpaceDisplay = (char === '\u00A0');
+    span.textContent = isSpaceDisplay ? '\u00A0' : char;
+
+    // Store the EXACT key the user must press
+    span.dataset.expected = isSpaceDisplay ? ' ' : char; // <- canonical expected key
     span.dataset.graded = "0";
-    span.dataset.space = (char === '\u00A0') ? "1" : "0"; // explicit space flag
     if (isCurrent) span.classList.add('current');
     return span;
   }
@@ -65,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const isLastInThisLine = wIdx === lineWords.length - 1;
       const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
       if (shouldAddSpace) {
-        lineContainer.appendChild(createCharSpan('\u00A0'));
+        lineContainer.appendChild(createCharSpan('\u00A0')); // display NBSP, expect ' '
       }
     });
     return lineContainer;
@@ -160,9 +164,9 @@ document.addEventListener("DOMContentLoaded", () => {
     restartGame();
   }
 
-  // ---- Grading helpers ----
+  // ---------- Grading helpers ----------
   function applyGrade(span, isCorrect) {
-    if (span.dataset.graded === "1") return; // already counted
+    if (span.dataset.graded === "1") return; // already counted for this char
     span.dataset.graded = "1";
     span.classList.add(isCorrect ? 'correct' : 'incorrect');
     grades.push(isCorrect ? 1 : 0);
@@ -175,24 +179,32 @@ document.addEventListener("DOMContentLoaded", () => {
     if (grades.length > 0) grades.pop();
   }
 
-  // ---- Input handling ----
-  document.addEventListener('keydown', (e) => {
-    const spans = sentenceEl.querySelectorAll('span');
+  // Normalize key for comparison
+  function normalizeKey(e) {
+    if (e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar') return ' ';
+    // ignore modifier keys etc.
+    if (e.key && e.key.length === 1) return e.key;
+    return null; // not a printable we care about
+  }
 
-    if (!gameActive && !startTime && e.key.length === 1) {
+  // ---------- Input handling ----------
+  document.addEventListener('keydown', (e) => {
+    // Start timer on first printable
+    if (!gameActive && !startTime && e.key && e.key.length === 1) {
       gameActive = true;
       startTime = Date.now();
       startTimer();
-    } else if (!gameActive) return;
+    } else if (!gameActive && e.key !== 'Backspace') {
+      return;
+    }
 
-    if (e.key.length !== 1 && e.key !== 'Backspace') return; // printable or Backspace only
-    e.preventDefault();
-
+    const spans = sentenceEl.querySelectorAll('span');
     const span = spans[currentIndex];
     if (!span) return;
 
     // Backspace
     if (e.key === "Backspace") {
+      e.preventDefault();
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
@@ -203,30 +215,29 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const isSpaceSpan = span.dataset.space === "1";
-    const isSpaceKey = (e.key === ' ' || e.code === 'Space');
+    const key = normalizeKey(e);
+    if (key === null) return; // ignore non-printables
+    e.preventDefault();
 
-    if (isSpaceSpan) {
-      // Only advance if Space was actually pressed
-      if (isSpaceKey) {
-        applyGrade(span, true);
-        span.classList.remove('current');
-        currentIndex++;
-      } else {
-        applyGrade(span, false);
-        // DO NOT advance on wrong key for a space
-        // Keep caret on this span so user must press actual space
-        spans.forEach(s => s.classList.remove('current'));
-        span.classList.add('current');
-        return;
-      }
-    } else {
-      // Regular character must match exactly; advance regardless (like typical typing tests)
-      const isCorrect = (e.key === span.textContent);
-      applyGrade(span, isCorrect);
-      span.classList.remove('current');
-      currentIndex++;
+    const expected = span.dataset.expected; // EXACT key required (' ' for space, 'a'.. etc.)
+
+    const isSpaceExpected = expected === ' ';
+    const isCorrect = key === expected;
+
+    // If the expected is a space and they typed NOT a space:
+    // mark incorrect but DO NOT advance (makes spaces "sticky")
+    if (isSpaceExpected && !isCorrect) {
+      applyGrade(span, false);
+      // keep caret on this same span
+      spans.forEach(s => s.classList.remove('current'));
+      span.classList.add('current');
+      return;
     }
+
+    // Otherwise grade and advance (letters advance whether correct or not)
+    applyGrade(span, isCorrect);
+    span.classList.remove('current');
+    currentIndex++;
 
     if (currentIndex < spans.length) {
       spans[currentIndex].classList.add('current');
@@ -237,7 +248,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   generateSentence();
-
   updateTimeButtonsActive(timeLimit);
   updateModeButtonsActive();
 
