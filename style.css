@@ -112,42 +112,6 @@ h1 {
   font-style: normal;
 }
 
-/* ---------- Leaderboard ---------- */
-#wrapleaderboard {
-  width: clamp(260px, 40%, 420px);   /* responsive, still compact */
-  height: 250px;
-  background: rgba(167,146,146,0.2);
-  border-radius: 5px;
-  overflow: hidden;
-  margin: 0 auto 20px;              /* centered */
-  padding: 10px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-}
-#wrapleaderboard h2 { margin: 10px 0; }
-#wrapleaderboard table { width: 100%; border-collapse: collapse; }
-#wrapleaderboard th, #wrapleaderboard td { text-align: center; padding: 6px; }
-
-/* sticky table header; scrollable body */
-#wrapleaderboard thead {
-  background: rgba(0,0,0,0.1);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-#wrapleaderboard tbody {
-  display: block;
-  max-height: 180px;
-  overflow-y: auto;
-}
-#wrapleaderboard thead,
-#wrapleaderboard tbody tr {
-  display: table;
-  width: 100%;
-  table-layout: fixed;
-}
-
 #wpm { font-size: 22px; margin-top: 15px; }
 span { display: inline-block; transition: all 0.2s ease; }
 
@@ -257,38 +221,6 @@ span { display: inline-block; transition: all 0.2s ease; }
   #restartBtn { transition: none; }
 }
 
-/* ---------- Username modal ---------- */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
-  display: none;             /* JS shows it */
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  animation: fadeIn 0.3s ease;
-}
-#usernameInput {
-  width: 90%;
-  padding: 10px;
-  margin: 15px 0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 16px;
-}
-#usernameSubmit {
-  padding: 10px 15px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-#usernameSubmit:hover { background: #0056b3; }
-
 /* ---------- Animations ---------- */
 @keyframes blink {
   0%, 50% { border-color: #fff; }
@@ -369,31 +301,6 @@ span { display: inline-block; transition: all 0.2s ease; }
 }
 #timer { font-size: 48px; }
 
-/* Leaderboard as a centered card like the screenshot */
-.card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 10px;
-  box-shadow: 0 16px 32px rgba(0,0,0,.35);
-  backdrop-filter: blur(6px);
-}
-#wrapleaderboard {
-  width: clamp(520px, 56vw, 840px);
-  height: 420px;
-  padding: 18px;
-}
-#wrapleaderboard h2 {
-  font-family: 'Fira Code', monospace;
-  font-weight: 800;
-  letter-spacing: .5px;
-  margin: 6px 0 12px;
-}
-#wrapleaderboard thead tr {
-  background: rgba(0,0,0,0.25);
-}
-#wrapleaderboard th {
-  font-weight: 800;
-}
 
 /* Sentence spacing so it sits above the leaderboard nicely */
 #sentence {
@@ -406,4 +313,5 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
