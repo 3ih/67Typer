@@ -4,7 +4,7 @@
 *::after { box-sizing: border-box; }
 
 body {
-  background:url('./animated.gif') center/cover no-repeat;
+  background:url('./starrynight.gif') center/cover no-repeat;
   position:relative;
 }
 body::after {
