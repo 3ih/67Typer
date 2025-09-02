@@ -9,9 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let startTime;
   let gameActive = false;
 
-  // Per-session tallies (do NOT rely on DOM)
-  let sessionCorrect = 0;
-  let sessionTotal = 0;
+  // Session-wide keystroke grades: 1 = correct, 0 = incorrect
+  const grades = [];
 
   const sentenceEl = document.getElementById('sentence');
   const timerEl = document.getElementById('timer');
@@ -51,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (mode === 'words') {
       sentence = "";
       let lastWord = "";
-      while (sentence.replace(/\s/g, '').length < 75) {
+      while (sentence.replace(/\s/g,'').length < 75) {
         let word = Math.random() < 0.25
           ? smallWords[Math.floor(Math.random() * smallWords.length)]
           : dictionary[Math.floor(Math.random() * dictionary.length)];
@@ -77,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const span = document.createElement('span');
           span.textContent = char;
           if (isFirstLine && wIdx === 0 && i === 0) span.classList.add('current');
-          // mark as not yet graded so backspace logic is reliable
+          // mark not graded
           span.dataset.graded = "0";
           span.dataset.correct = "0";
           lineContainer.appendChild(span);
@@ -131,11 +130,13 @@ document.addEventListener("DOMContentLoaded", () => {
     gameActive = false;
     clearInterval(timer);
 
-    // WPM based on correct chars only
-    const wpm = Math.round((sessionCorrect / 5) / ((Date.now() - startTime) / 60000));
+    // WPM uses number of correct characters across the whole session
+    const correctCount = grades.reduce((a, b) => a + b, 0);
+    const wpm = Math.round((correctCount / 5) / ((Date.now() - startTime) / 60000));
 
-    // Accuracy across WHOLE session (all sentences)
-    const accuracy = sessionTotal ? Math.round((sessionCorrect / sessionTotal) * 100) : 0;
+    // Accuracy across the WHOLE session
+    const totalKeystrokes = grades.length;
+    const accuracy = totalKeystrokes ? Math.round((correctCount / totalKeystrokes) * 100) : 0;
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
     document.getElementById('overlay').style.display = 'flex';
@@ -147,9 +148,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     gameActive = false;
 
-    // Reset session counters ONLY when restarting a game
-    sessionCorrect = 0;
-    sessionTotal = 0;
+    // Reset session counters ONLY when starting a new game
+    grades.length = 0;
 
     generateSentence();
     startTime = null;
@@ -164,24 +164,22 @@ document.addEventListener("DOMContentLoaded", () => {
     restartGame();
   }
 
-  // Helpers to grade/undo a single span safely
+  // Helpers to grade/undo a single span safely + push/pop to grades[]
   function applyGrade(span, isCorrect) {
     if (span.dataset.graded === "1") return; // already counted
     span.dataset.graded = "1";
     span.dataset.correct = isCorrect ? "1" : "0";
     span.classList.add(isCorrect ? 'correct' : 'incorrect');
-    sessionTotal++;
-    if (isCorrect) sessionCorrect++;
+    grades.push(isCorrect ? 1 : 0);
   }
 
   function undoGrade(span) {
     if (span.dataset.graded !== "1") return; // nothing to undo
-    const wasCorrect = span.dataset.correct === "1";
-    sessionTotal = Math.max(0, sessionTotal - 1);
-    if (wasCorrect) sessionCorrect = Math.max(0, sessionCorrect - 1);
     span.dataset.graded = "0";
-    span.dataset.correct = "0";
     span.classList.remove('correct', 'incorrect');
+    span.dataset.correct = "0";
+    // Remove last grade entry (corresponds to most recent keystroke)
+    if (grades.length > 0) grades.pop();
   }
 
   document.addEventListener('keydown', (e) => {
@@ -202,9 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Backspace") {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
-        // Only undo if it was graded
         undoGrade(prev);
-
         currentIndex--;
         spans.forEach(span => span.classList.remove('current'));
         spans[currentIndex].classList.add('current');
@@ -212,39 +208,26 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Space handling
+    // SPACE handling
     if (currentChar === '\u00A0') {
       if (e.key === ' ') {
-        applyGrade(spans[currentIndex], true); // space is only "correct" if space pressed
-        spans[currentIndex].classList.remove('current');
-        currentIndex++;
-        if (currentIndex < spans.length) {
-          spans[currentIndex].classList.add('current');
-        } else {
-          const timeLeft = parseInt(timerEl.textContent, 10) || 0;
-          if (gameActive && timeLeft > 0) generateSentence();
-        }
+        applyGrade(spans[currentIndex], true);
       } else {
-        // wrong key on a space
         applyGrade(spans[currentIndex], false);
-        spans[currentIndex].classList.remove('current');
-        currentIndex++;
-        if (currentIndex < spans.length) {
-          spans[currentIndex].classList.add('current');
-        } else {
-          const timeLeft = parseInt(timerEl.textContent, 10) || 0;
-          if (gameActive && timeLeft > 0) generateSentence();
-        }
+      }
+      spans[currentIndex].classList.remove('current');
+      currentIndex++;
+      if (currentIndex < spans.length) {
+        spans[currentIndex].classList.add('current');
+      } else {
+        const timeLeft = parseInt(timerEl.textContent, 10) || 0;
+        if (gameActive && timeLeft > 0) generateSentence();
       }
       return;
     }
 
     // Regular character
-    if (e.key === currentChar) {
-      applyGrade(spans[currentIndex], true);
-    } else {
-      applyGrade(spans[currentIndex], false);
-    }
+    applyGrade(spans[currentIndex], e.key === currentChar);
 
     spans[currentIndex].classList.remove('current');
     currentIndex++;
