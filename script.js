@@ -1,6 +1,3 @@
-const API_BASE = 'https://six7typing-server.onrender.com';
-console.log('API_BASE =', API_BASE);
-
 import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
 
@@ -20,10 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const gameOverScreen = document.getElementById('gameOverScreen');
   const finalStats = document.getElementById('finalStats');
 
-  const modal = document.getElementById("usernameModal");
-  const usernameInput = document.getElementById("usernameInput");
-  let username = localStorage.getItem('username');
-
   /* === MODE TOGGLE === */
   let mode = 'words'; // 'words' | 'sentences'
 
@@ -42,64 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
     restartGame();
   }
   /* === END MODE TOGGLE === */
-
-  /* === username modal overlay === */
-  const userOverlay = document.createElement('div');
-  userOverlay.id = 'userOverlay';
-  Object.assign(userOverlay.style, {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '100vw',
-    height: '100vh',
-    background: 'rgba(0,0,0,0.35)',
-    backdropFilter: 'blur(6px)',
-    display: 'none',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: '2000'
-  });
-  document.body.appendChild(userOverlay);
-  userOverlay.appendChild(modal);
-
-  if (!username) {
-    userOverlay.style.display = "flex";
-    modal.style.display = "flex";
-    setTimeout(() => usernameInput.focus(), 50);
-  } else {
-    userOverlay.style.display = "none";
-    modal.style.display = "none";
-  }
-
-  function saveUsername() {
-    const value = usernameInput.value.trim();
-    if (!value) { alert("Please enter a username!"); usernameInput.focus(); return; }
-    if (value.length > 12) { alert("Username must be 12 characters or fewer."); usernameInput.focus(); return; }
-    localStorage.setItem('username', value);
-    username = value;
-    modal.style.display = "none";
-    userOverlay.style.display = "none";
-  }
-
-  usernameInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") saveUsername();
-  });
-
-  const usernameSubmitBtn = modal.querySelector('button');
-  if (usernameSubmitBtn) {
-    usernameSubmitBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      saveUsername();
-    });
-  }
-
-  window.addEventListener("keydown", (e) => {
-    const isModalVisible = modal.style.display !== "none";
-    if (isModalVisible && document.activeElement !== usernameInput) {
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    }
-  }, true);
 
   /* === Time buttons highlight === */
   const timeButtons = document.querySelectorAll('#settings button');
@@ -184,52 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
-  // ===== Leaderboard API helpers (Render) =====
-  async function submitScore(wpm) {
-    if (!username) return;
-    const score = Math.round(Number(wpm));
-    if (!Number.isFinite(score) || score < 0 || score > 200) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/scores`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: username.trim(), score })
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('POST /scores failed:', res.status, text);
-        return;
-      }
-      await loadScores();
-    } catch (err) {
-      console.error('POST /scores error:', err);
-    }
-  }
-
-  async function loadScores() {
-    try {
-      const res = await fetch(`${API_BASE}/scores?limit=10`);
-      if (!res.ok) throw new Error(`GET /scores → ${res.status}`);
-      const scores = await res.json();
-
-      const tbody = document.getElementById('leaderboard');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      (scores || []).forEach(s => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${String(s.name)}</td><td>${Number(s.score)}</td>`;
-        tbody.appendChild(tr);
-      });
-    } catch (err) {
-      console.error('Error loading scores:', err);
-    }
-  }
-  // ============================================
-
-  // Make endGame async so we can await the POST and refresh
-  async function endGame() {
+  function endGame() {
     if (!gameActive) return;
     gameActive = false;
     clearInterval(timer);
@@ -243,8 +133,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
     document.getElementById('overlay').style.display = 'flex';
-
-    await submitScore(wpm);
   }
 
   function restartGame() {
@@ -268,8 +156,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   document.addEventListener('keydown', (e) => {
-    if (modal.style.display !== "none") return;
-
     const spans = sentenceEl.querySelectorAll('span');
 
     if (!gameActive && !startTime && e.key.length === 1) {
@@ -339,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   generateSentence();
-  loadScores();
 
   updateTimeButtonsActive(timeLimit);
   updateModeButtonsActive();
