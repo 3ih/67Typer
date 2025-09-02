@@ -196,11 +196,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function manualRestart() { restartGame(); }
 
-  // ---------- Caret helper ----------
+  // ---------- Caret helpers ----------
+  function spansAll() { return sentenceEl.querySelectorAll('span'); }
   function setCaret() {
-    const spans = sentenceEl.querySelectorAll('span');
+    const spans = spansAll();
     spans.forEach(s => s.classList.remove('current'));
     if (spans[currentIndex]) spans[currentIndex].classList.add('current');
+  }
+  function indexOfSpan(node) {
+    const spans = spansAll();
+    return Array.prototype.indexOf.call(spans, node);
   }
 
   // ---------- Grading helpers ----------
@@ -236,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
     extra.style.padding = '0';
     targetSpaceSpan.parentNode.insertBefore(extra, targetSpaceSpan);
     grades.push(0);
+    return extra;
   }
 
   // ---------- Input handling ----------
@@ -252,9 +258,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    let spans = sentenceEl.querySelectorAll('span');
+    let spans = spansAll();
     let span = spans[currentIndex];
     if (!span) return;
+
+    // Keep a pin to the current target node (so its index can be recomputed after DOM changes)
+    const pinnedTarget = span;
 
     // Backspace: undo the node immediately before currentIndex.
     if (e.key === 'Backspace') {
@@ -262,8 +271,15 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
-        currentIndex--; // move caret one step left
-        // Refresh snapshot after possible DOM removal
+
+        // Recompute index of the pinned target (space or normal char) after removal
+        const newIdx = indexOfSpan(pinnedTarget);
+        if (newIdx !== -1) {
+          currentIndex = newIdx; // keep caret on the same logical target
+        } else {
+          // Target itself was removed; fall back one step
+          currentIndex = Math.max(0, currentIndex - 1);
+        }
         setCaret();
       }
       return;
@@ -275,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    // SPACE expected:
+    // SPACE expected
     if (expected === ' ') {
       if (key === ' ') {
         // Correct: grade & advance
@@ -285,12 +301,11 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         // Wrong key at space => INSERT EXTRA BEFORE THE SPACE
         insertExtraBefore(span, key);
-        // Keep caret on the SAME space: since we inserted a node BEFORE it,
-        // the space moved right by +1 in the NodeList, so increment currentIndex.
-        currentIndex++;
+        // Keep caret on the SAME space: recompute its index (it just moved right by +1)
+        const newIdx = indexOfSpan(pinnedTarget);
+        if (newIdx !== -1) currentIndex = newIdx;
         setCaret();
-        // Do not advance beyond the space
-        return;
+        return; // do not advance beyond the space
       }
     } else {
       // Normal character: grade (correct/incorrect) and advance
@@ -301,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // If we finished all spans, load next sentence (if time remains)
-    spans = sentenceEl.querySelectorAll('span');
+    spans = spansAll();
     if (currentIndex >= spans.length) {
       const timeLeft = parseInt(timerEl?.textContent || '0', 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
