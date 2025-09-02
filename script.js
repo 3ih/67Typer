@@ -19,8 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeProgress = document.getElementById('timeProgress');
   const finalStats = document.getElementById('finalStats');
 
-  // Make sure extras/spaces always render as typed
-  sentenceEl.style.whiteSpace = 'pre-wrap';
+  // ensure visible spacing/extras
+  if (sentenceEl) sentenceEl.style.whiteSpace = 'pre-wrap';
 
   /* === MODE TOGGLE === */
   let mode = 'words'; // 'words' | 'sentences'
@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
     span.textContent = isDisplaySpace ? '\u00A0' : char;
     span.dataset.expected = isDisplaySpace ? ' ' : char; // exact expected key
     span.dataset.graded = "0"; // 0 = not graded yet, 1 = graded
-    span.dataset.extra = "0";  // 1 = this node is an inserted extra char
+    span.dataset.extra = "0";  // 1 = inserted extra char
     if (isCurrent) span.classList.add('current');
     return span;
   }
@@ -137,11 +137,12 @@ document.addEventListener("DOMContentLoaded", () => {
     sentenceEl.appendChild(createLine(line1Words, true));
     sentenceEl.appendChild(createLine(line2Words, false));
     currentIndex = 0;
+    setCaret();
   }
 
   function setTime(seconds) {
     timeLimit = seconds;
-    timerEl.textContent = `${timeLimit}`;
+    if (timerEl) timerEl.textContent = `${timeLimit}`;
     updateTimeButtonsActive(seconds);
     updateModeButtonsActive();
     restartGame();
@@ -149,14 +150,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startTimer() {
     let timeLeft = timeLimit;
-    timerEl.textContent = `${timeLeft}`;
-    timeProgress.style.width = '100%';
+    if (timerEl) timerEl.textContent = `${timeLeft}`;
+    if (timeProgress) timeProgress.style.width = '100%';
     timer = setInterval(() => {
       if (!gameActive) return;
       timeLeft--;
       if (timeLeft < 0) timeLeft = 0;
-      timerEl.textContent = `${timeLeft}`;
-      timeProgress.style.width = (timeLeft / timeLimit * 100) + '%';
+      if (timerEl) timerEl.textContent = `${timeLeft}`;
+      if (timeProgress) timeProgress.style.width = (timeLeft / timeLimit * 100) + '%';
       if (timeLeft <= 0) {
         clearInterval(timer);
         endGame();
@@ -174,8 +175,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalKeystrokes = grades.length;
     const accuracy = totalKeystrokes ? Math.round((correctCount / totalKeystrokes) * 100) : 0;
 
-    finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
-    document.getElementById('overlay').style.display = 'flex';
+    if (finalStats) finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
+    const overlay = document.getElementById('overlay');
+    if (overlay) overlay.style.display = 'flex';
   }
 
   function restartGame() {
@@ -186,13 +188,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     generateSentence();
     startTime = null;
-    timeProgress.style.width = '100%';
-    timerEl.textContent = `${timeLimit}`;
+    if (timeProgress) timeProgress.style.width = '100%';
+    if (timerEl) timerEl.textContent = `${timeLimit}`;
     clearInterval(timer);
     updateModeButtonsActive();
   }
 
   function manualRestart() { restartGame(); }
+
+  // ---------- Caret helper ----------
+  function setCaret() {
+    const spans = sentenceEl.querySelectorAll('span');
+    spans.forEach(s => s.classList.remove('current'));
+    if (spans[currentIndex]) spans[currentIndex].classList.add('current');
+  }
 
   // ---------- Grading helpers ----------
   function applyGrade(span, isCorrect) {
@@ -211,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (wasExtra && span.parentNode) span.parentNode.removeChild(span);
   }
 
-  // Always-visible extra (red) span inserted before the space
+  // Always-visible extra (red) span inserted BEFORE the space.
   function insertExtraBefore(targetSpaceSpan, char) {
     const extra = document.createElement('span');
     extra.textContent = char;
@@ -227,43 +236,35 @@ document.addEventListener("DOMContentLoaded", () => {
     extra.style.padding = '0';
     targetSpaceSpan.parentNode.insertBefore(extra, targetSpaceSpan);
     grades.push(0);
-    return extra;
   }
 
   // ---------- Input handling ----------
   document.addEventListener('keydown', (e) => {
-    // Start timer on first printable key (and also grade that same key)
+    // Start timer on first printable; still grade that key below.
     if (!gameActive && !startTime && isPrintableKey(e)) {
       const k = normalizeKey(e);
       if (k !== null) {
         gameActive = true;
         startTime = Date.now();
         startTimer();
-        // Do NOT return here — we still want this keystroke to grade below.
       }
     } else if (!gameActive && e.key !== 'Backspace') {
       return;
     }
 
-    // Always work with a fresh snapshot in case DOM changed
     let spans = sentenceEl.querySelectorAll('span');
     let span = spans[currentIndex];
     if (!span) return;
 
-    // Backspace: undo the most recent graded node
+    // Backspace: undo the node immediately before currentIndex.
     if (e.key === 'Backspace') {
       e.preventDefault();
       if (currentIndex > 0) {
-        // After inserts, the extra sits right before the space,
-        // so prev index is correct.
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
-        currentIndex--;
-
-        // Refresh caret and span snapshot after possible DOM removal
-        spans = sentenceEl.querySelectorAll('span');
-        spans.forEach(s => s.classList.remove('current'));
-        if (spans[currentIndex]) spans[currentIndex].classList.add('current');
+        currentIndex--; // move caret one step left
+        // Refresh snapshot after possible DOM removal
+        setCaret();
       }
       return;
     }
@@ -274,37 +275,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    // If the expected char is a SPACE:
+    // SPACE expected:
     if (expected === ' ') {
       if (key === ' ') {
-        // Correct space: grade & advance
+        // Correct: grade & advance
         applyGrade(span, true);
-        span.classList.remove('current');
         currentIndex++;
+        setCaret();
       } else {
-        // Wrong key at space: insert visible red extra before the space
+        // Wrong key at space => INSERT EXTRA BEFORE THE SPACE
         insertExtraBefore(span, key);
-        // Keep caret on the same space; refresh snapshot/classes so user sees it immediately
-        spans = sentenceEl.querySelectorAll('span');
-        spans.forEach(s => s.classList.remove('current'));
-        // currentIndex still points to the space (which is now at +1 index from the extra we inserted)
-        if (spans[currentIndex]) spans[currentIndex].classList.add('current');
-        return; // do not advance
+        // Keep caret on the SAME space: since we inserted a node BEFORE it,
+        // the space moved right by +1 in the NodeList, so increment currentIndex.
+        currentIndex++;
+        setCaret();
+        // Do not advance beyond the space
+        return;
       }
     } else {
       // Normal character: grade (correct/incorrect) and advance
       const isCorrect = eqExpected(key, expected);
       applyGrade(span, isCorrect);
-      span.classList.remove('current');
       currentIndex++;
+      setCaret();
     }
 
-    // Advance caret or load next sentence
+    // If we finished all spans, load next sentence (if time remains)
     spans = sentenceEl.querySelectorAll('span');
-    if (currentIndex < spans.length) {
-      spans[currentIndex].classList.add('current');
-    } else {
-      const timeLeft = parseInt(timerEl.textContent, 10) || 0;
+    if (currentIndex >= spans.length) {
+      const timeLeft = parseInt(timerEl?.textContent || '0', 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
     }
   });
