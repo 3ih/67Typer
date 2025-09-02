@@ -4,15 +4,15 @@
 *::after { box-sizing: border-box; }
 
 body {
-  background-image: url('starrynight.gif');
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-/* baseline */
-html,body{height:100%;margin:0}
-body{
   background:url('./animated.gif') center/cover no-repeat;
+  position:relative;
+}
+body::after {
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4); /* adjust alpha 0.0–1.0 */
+  pointer-events:none;
 }
 .container{background:transparent}
 #overlay{background:rgba(0,0,0,.6);display:none}
@@ -327,6 +327,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
