@@ -9,6 +9,13 @@ body {
   background-repeat: no-repeat;
   background-position: center;
 }
+/* baseline */
+html,body{height:100%;margin:0}
+body{
+  background:url('./animated.gif') center/cover no-repeat;
+}
+.container{background:transparent}
+#overlay{background:rgba(0,0,0,.6);display:none}
 
 @font-face {
   font-family: 'Rocket Command';
@@ -320,6 +327,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
