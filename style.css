@@ -9,8 +9,8 @@ body {
 body::after {
   content:"";
   position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); /* adjust alpha 0–1 for darkness */
-  backdrop-filter: blur(15px);  /* blur strength */
+  background:rgba(0,0,0,0.65); /* adjust alpha 0–1 for darkness */
+  backdrop-filter: blur(50px);  /* blur strength */
   pointer-events:none;
   z-index:0;
 }
@@ -316,4 +316,5 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
