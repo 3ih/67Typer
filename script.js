@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const sentenceEl = document.getElementById('sentence');
   const timerEl = document.getElementById('timer');
   const timeProgress = document.getElementById('timeProgress');
-  const gameOverScreen = document.getElementById('gameOverScreen');
   const finalStats = document.getElementById('finalStats');
 
   /* === MODE TOGGLE === */
@@ -46,12 +45,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ---- Sentence rendering ----
+  function createCharSpan(char, isCurrent = false) {
+    const span = document.createElement('span');
+    span.textContent = char;
+    span.dataset.graded = "0";
+    span.dataset.correct = "0";
+    span.dataset.space = (char === '\u00A0') ? "1" : "0"; // explicit space flag
+    if (isCurrent) span.classList.add('current');
+    return span;
+  }
+
+  function createLine(lineWords, isFirstLine) {
+    const lineContainer = document.createElement('div');
+    lineWords.forEach((word, wIdx) => {
+      word.split('').forEach((char, i) => {
+        const isFirstChar = (isFirstLine && wIdx === 0 && i === 0);
+        lineContainer.appendChild(createCharSpan(char, isFirstChar));
+      });
+      const isLastInThisLine = wIdx === lineWords.length - 1;
+      const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
+      if (shouldAddSpace) {
+        lineContainer.appendChild(createCharSpan('\u00A0'));
+      }
+    });
+    return lineContainer;
+  }
+
   function generateSentence() {
     if (mode === 'words') {
       sentence = "";
       let lastWord = "";
       while (sentence.replace(/\s/g,'').length < 75) {
-        let word = Math.random() < 0.25
+        const word = Math.random() < 0.25
           ? smallWords[Math.floor(Math.random() * smallWords.length)]
           : dictionary[Math.floor(Math.random() * dictionary.length)];
         if (word === lastWord) continue;
@@ -69,30 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const line2Words = words.slice(midpoint);
 
     sentenceEl.innerHTML = "";
-    function createLine(lineWords, isFirstLine) {
-      const lineContainer = document.createElement('div');
-      lineWords.forEach((word, wIdx) => {
-        word.split('').forEach((char, i) => {
-          const span = document.createElement('span');
-          span.textContent = char;
-          if (isFirstLine && wIdx === 0 && i === 0) span.classList.add('current');
-          // mark not graded
-          span.dataset.graded = "0";
-          span.dataset.correct = "0";
-          lineContainer.appendChild(span);
-        });
-        const isLastInThisLine = wIdx === lineWords.length - 1;
-        const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
-        if (shouldAddSpace) {
-          const space = document.createElement('span');
-          space.textContent = '\u00A0';
-          space.dataset.graded = "0";
-          space.dataset.correct = "0";
-          lineContainer.appendChild(space);
-        }
-      });
-      return lineContainer;
-    }
     sentenceEl.appendChild(createLine(line1Words, true));
     sentenceEl.appendChild(createLine(line2Words, false));
 
@@ -130,11 +132,8 @@ document.addEventListener("DOMContentLoaded", () => {
     gameActive = false;
     clearInterval(timer);
 
-    // WPM uses number of correct characters across the whole session
     const correctCount = grades.reduce((a, b) => a + b, 0);
     const wpm = Math.round((correctCount / 5) / ((Date.now() - startTime) / 60000));
-
-    // Accuracy across the WHOLE session
     const totalKeystrokes = grades.length;
     const accuracy = totalKeystrokes ? Math.round((correctCount / totalKeystrokes) * 100) : 0;
 
@@ -147,9 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (overlay) overlay.style.display = 'none';
 
     gameActive = false;
-
-    // Reset session counters ONLY when starting a new game
-    grades.length = 0;
+    grades.length = 0; // reset session grades
 
     generateSentence();
     startTime = null;
@@ -164,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
     restartGame();
   }
 
-  // Helpers to grade/undo a single span safely + push/pop to grades[]
+  // ---- Grading helpers ----
   function applyGrade(span, isCorrect) {
     if (span.dataset.graded === "1") return; // already counted
     span.dataset.graded = "1";
@@ -174,14 +171,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function undoGrade(span) {
-    if (span.dataset.graded !== "1") return; // nothing to undo
+    if (span.dataset.graded !== "1") return;
     span.dataset.graded = "0";
-    span.classList.remove('correct', 'incorrect');
     span.dataset.correct = "0";
-    // Remove last grade entry (corresponds to most recent keystroke)
+    span.classList.remove('correct', 'incorrect');
     if (grades.length > 0) grades.pop();
   }
 
+  // ---- Input handling ----
   document.addEventListener('keydown', (e) => {
     const spans = sentenceEl.querySelectorAll('span');
 
@@ -191,45 +188,40 @@ document.addEventListener("DOMContentLoaded", () => {
       startTimer();
     } else if (!gameActive) return;
 
-    if (e.key.length !== 1 && e.key !== 'Backspace' && e.key !== ' ') return;
-
+    if (e.key.length !== 1 && e.key !== 'Backspace') return; // allow all single chars; Backspace separately
     e.preventDefault();
-    const currentChar = spans[currentIndex]?.textContent;
-    if (currentChar === undefined) return;
 
+    const span = spans[currentIndex];
+    if (!span) return;
+
+    // Backspace
     if (e.key === "Backspace") {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
         currentIndex--;
-        spans.forEach(span => span.classList.remove('current'));
+        spans.forEach(s => s.classList.remove('current'));
         spans[currentIndex].classList.add('current');
       }
       return;
     }
 
-    // SPACE handling
-    if (currentChar === '\u00A0') {
-      if (e.key === ' ') {
-        applyGrade(spans[currentIndex], true);
-      } else {
-        applyGrade(spans[currentIndex], false);
-      }
-      spans[currentIndex].classList.remove('current');
-      currentIndex++;
-      if (currentIndex < spans.length) {
-        spans[currentIndex].classList.add('current');
-      } else {
-        const timeLeft = parseInt(timerEl.textContent, 10) || 0;
-        if (gameActive && timeLeft > 0) generateSentence();
-      }
-      return;
+    const isSpaceSpan = span.dataset.space === "1";
+
+    // Determine correctness
+    let isCorrect = false;
+    if (isSpaceSpan) {
+      // Only correct if actual space typed
+      isCorrect = (e.key === ' ');
+    } else {
+      // Letter/character must match exactly
+      isCorrect = (e.key === span.textContent);
     }
 
-    // Regular character
-    applyGrade(spans[currentIndex], e.key === currentChar);
+    applyGrade(span, isCorrect);
 
-    spans[currentIndex].classList.remove('current');
+    // Advance caret
+    span.classList.remove('current');
     currentIndex++;
 
     if (currentIndex < spans.length) {
