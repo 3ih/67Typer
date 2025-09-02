@@ -1,25 +1,16 @@
-/* DEBUG BG */
-html,body{height:100%;margin:0}
-body{
-  background-image:url('starnight.gif') !important; /* <-- set the right path */
-  background-position:center !important;
-  background-repeat:no-repeat !important;
-  background-size:cover !important;
-}
-*{outline:none}
-
-/* keep these */
-html,body{height:100%;margin:0}
-body{
-  background:url('./animated.gif') center/cover no-repeat; /* correct path */
+/* ---------- Background + Fade ---------- */
+html,body {height:100%; margin:0}
+body {
+  background-image:url('starnight.gif'); /* adjust filename/path */
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:cover;
   position:relative;
 }
-
-/* fade */
-body::after{
+body::after {
   content:"";
   position:fixed; inset:0;
-  background:rgba(0,0,0,0.4); /* increase toward 1.0 to darken more */
+  background:rgba(0,0,0,0.4); /* increase alpha for darker fade */
   pointer-events:none;
 }
 
@@ -27,8 +18,6 @@ body::after{
 *,
 *::before,
 *::after { box-sizing: border-box; }
-
-
 
 @font-face {
   font-family: 'Rocket Command';
@@ -46,12 +35,12 @@ body::after{
 /* Page shell: vertically stacked, centered */
 body {
   font-family: 'Fira Code', monospace;
-  background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+  /* background: linear-gradient(to right, #0f2027, #203a43, #2c5364);  REMOVED */
   display: flex;
   flex-direction: column;
   align-items: center;       /* center horizontally */
   justify-content: flex-start;
-  min-height: 100vh;         /* allow content to center correctly */
+  min-height: 100vh;         
   margin: 0;
   padding: 20px;
   color: #fff;
@@ -100,11 +89,10 @@ h1 {
   margin-right: 1px;
   transition: color 0.2s;
 }
-#sentence span.correct   { color: #4caf50; }     /* green */
-#sentence span.incorrect { color: #f44336; }     /* red */
+#sentence span.correct   { color: #4caf50; }
+#sentence span.incorrect { color: #f44336; }
 #sentence span.extra     { color: rgba(244,67,54,0.5); opacity: 0; animation: fadeExtra 0.3s forwards; }
 
-/* caret on current letter */
 #sentence span.current {
   border-left: 2px solid #fff;
   animation: blink 1s step-start infinite;
@@ -119,7 +107,7 @@ h1 {
   border-radius: 5px;
   overflow: hidden;
   position: relative;
-  margin: 0 auto 20px;     /* center the bar */
+  margin: 0 auto 20px;
 }
 #timeProgress {
   height: 100%;
@@ -146,7 +134,7 @@ span { display: inline-block; transition: all 0.2s ease; }
 #settings {
   display: flex;
   flex-direction: column;
-  align-items: center;      /* center the two rows */
+  align-items: center;
   gap: 12px;
   margin: 20px 0;
   flex-wrap: wrap;
@@ -172,10 +160,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   align-items: center;
   gap: 8px;
   box-shadow: 0 6px 14px rgba(0,0,0,.25);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
 }
 #settings button:hover  { background: linear-gradient(180deg, #25586a, #1a4250); transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.35); }
 #settings button:active { transform: translateY(0); box-shadow: 0 3px 8px rgba(0,0,0,.4); }
@@ -194,7 +179,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   inset: 0;
   background: rgba(0,0,0,0.35);
   backdrop-filter: blur(6px);
-  display: none;                   /* JS toggles */
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 999;
@@ -328,22 +313,15 @@ span { display: inline-block; transition: all 0.2s ease; }
 }
 #timer { font-size: 48px; }
 
+/* Sentence spacing */
+#sentence { margin: 6px 0 24px; }
 
-/* Sentence spacing so it sits above the leaderboard nicely */
-#sentence {
-  margin: 6px 0 24px;
-}
-
-/* Small screens: keep it clean */
+/* Small screens */
 @media (max-width: 640px) {
   .title-row .title-word { font-size: 36px; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
-
-
-
-
 
 
 
