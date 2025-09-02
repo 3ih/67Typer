@@ -126,10 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const wpm = Math.round((correctChars / 5) / ((Date.now() - startTime) / 60000));
 
-    // accuracy from DOM (0–100%)
-    const correctCount = sentenceEl.querySelectorAll('span.correct').length;
-    const gradedCount  = sentenceEl.querySelectorAll('span.correct, span.incorrect').length;
-    const accuracy = gradedCount ? Math.round((correctCount / gradedCount) * 100) : 0;
+    // Use tracked totals across the whole session
+    const accuracy = totalTyped ? Math.round((correctChars / totalTyped) * 100) : 0;
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
     document.getElementById('overlay').style.display = 'flex';
@@ -234,3 +232,5 @@ document.addEventListener("DOMContentLoaded", () => {
   window.restartGame = restartGame;
   window.setMode = setMode;
 });
+
+
