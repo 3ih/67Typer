@@ -15,13 +15,10 @@ body {
 
 body::after {
   content:"";
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  background:rgba(0,0,0,0.3); /* increase to 0.6 for darker */
-  pointer-events:none;        /* overlay won’t block clicks */
+  position:fixed;   /* cover entire viewport */
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.4); /* adjust 0–1 for fade strength */
+  pointer-events:none;        /* so it doesn’t block clicks */
 }
 
 @font-face {
@@ -334,6 +331,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
