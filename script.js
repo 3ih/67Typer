@@ -9,10 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let startTime;
   let gameActive = false;
 
-  // Session-wide accuracy/WPM
-  const grades = []; // 1 = correct, 0 = incorrect
+  // Session-wide keystroke results: 1 = correct, 0 = incorrect
+  const grades = [];
 
-  // Case sensitivity toggle (set to false if you want 'a' to match 'A')
+  // Toggle to accept case-insensitive typing if you want
   const CASE_SENSITIVE = true;
 
   const sentenceEl = document.getElementById('sentence');
@@ -58,28 +58,21 @@ document.addEventListener("DOMContentLoaded", () => {
     return true;
   }
 
-  // Return single normalized character or null to ignore
+  // Return single normalized char or null to ignore
   function normalizeKey(e) {
     if (!isPrintableKey(e)) return null;
-
-    // Any “space-like” input becomes ' '
     if (e.code === 'Space' || e.key === 'Spacebar') return ' ';
     if (SPACE_CHARS.has(e.key)) return ' ';
-
-    // Typical printable
     if (typeof e.key === 'string' && e.key.length === 1) {
       const nk = e.key.normalize('NFKC');
       if (nk.length === 1) return nk;
     }
-
-    // Fallback for some numpad cases
     if (e.key === 'Unidentified') {
       if (e.code === 'NumpadDecimal') return '.';
       if (e.code === 'NumpadComma') return ',';
       const m = /^Numpad([0-9])$/.exec(e.code || '');
       if (m) return m[1];
     }
-
     return null;
   }
 
@@ -90,17 +83,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return inputChar === expectedChar;
   }
 
-  // ---------- Rendering helpers ----------
+  // ---------- Rendering ----------
   function createCharSpan(char, isCurrent = false) {
     const span = document.createElement('span');
-
-    // Show NBSP for layout, but EXPECT a real space ' ' from keyboard
     const isDisplaySpace = (char === '\u00A0');
     span.textContent = isDisplaySpace ? '\u00A0' : char;
-
-    // Store the exact expected key (single char)
+    // Store the *actual* expected key (space = ' ')
     span.dataset.expected = isDisplaySpace ? ' ' : char;
     span.dataset.graded = "0";
+    span.dataset.extra = "0"; // extras we insert will set this to "1"
     if (isCurrent) span.classList.add('current');
     return span;
   }
@@ -114,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const isLastInThisLine = wIdx === lineWords.length - 1;
       const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
-      if (shouldAddSpace) line.appendChild(createCharSpan('\u00A0')); // display NBSP, expect ' '
+      if (shouldAddSpace) line.appendChild(createCharSpan('\u00A0'));
     });
     return line;
   }
@@ -198,7 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
     timeProgress.style.width = '100%';
     timerEl.textContent = `${timeLimit}`;
     clearInterval(timer);
-
     updateModeButtonsActive();
   }
 
@@ -206,17 +196,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Grading helpers ----------
   function applyGrade(span, isCorrect) {
-    if (span.dataset.graded === "1") return; // already graded
+    if (span.dataset.graded === "1") return;
     span.dataset.graded = "1";
-    span.classList.add(isCorrect ? 'correct' : 'incorrect');
+    if (isCorrect) {
+      span.classList.add('correct');
+    } else {
+      span.classList.add('incorrect');
+    }
     grades.push(isCorrect ? 1 : 0);
   }
 
   function undoGrade(span) {
     if (span.dataset.graded !== "1") return;
+    // If it's an extra char we created, remove it from DOM entirely
+    const wasExtra = span.dataset.extra === "1";
     span.dataset.graded = "0";
     span.classList.remove('correct', 'incorrect');
+
     if (grades.length > 0) grades.pop();
+
+    if (wasExtra && span.parentNode) {
+      span.parentNode.removeChild(span);
+    }
+  }
+
+  // Create an inline red "extra" span (wrong char typed when space expected)
+  function insertExtraBefore(targetSpan, char) {
+    const extra = document.createElement('span');
+    extra.textContent = char;
+    extra.dataset.expected = '';     // not an expected char
+    extra.dataset.graded = "1";
+    extra.dataset.extra = "1";
+    extra.classList.add('incorrect');
+    // force visible red in case there's no CSS
+    extra.style.color = 'red';
+    // insert just before the space so it appears at end of the word
+    targetSpan.parentNode.insertBefore(extra, targetSpan);
+    grades.push(0);
+    return extra;
   }
 
   // ---------- Input handling ----------
@@ -237,15 +254,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const span = spans[currentIndex];
     if (!span) return;
 
-    // Backspace: undo previous graded char (if any)
+    // Backspace removes last graded char; if it's an extra, we delete the node
     if (e.key === 'Backspace') {
       e.preventDefault();
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
         currentIndex--;
-        spans.forEach(s => s.classList.remove('current'));
-        spans[currentIndex].classList.add('current');
+        // Caret on new current
+        Array.from(sentenceEl.querySelectorAll('span')).forEach(s => s.classList.remove('current'));
+        const fresh = sentenceEl.querySelectorAll('span');
+        if (fresh[currentIndex]) fresh[currentIndex].classList.add('current');
       }
       return;
     }
@@ -256,28 +275,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    // If expected is a space, ONLY a real space advances; wrong keys do nothing
+    // If the expected is a space:
+    // - Real space: grade correct & advance
+    // - Any other printable: insert a red "extra" letter before the space (incorrect) and DO NOT advance
     if (expected === ' ') {
       if (key === ' ') {
         applyGrade(span, true);
         span.classList.remove('current');
         currentIndex++;
       } else {
-        // wrong key on a space: do NOT grade, do NOT advance
-        spans.forEach(s => s.classList.remove('current'));
+        // Insert red extra letter before the space and keep caret on the space
+        insertExtraBefore(span, key);
+        // Keep caret on the space (no advance). Refresh current class.
+        Array.from(sentenceEl.querySelectorAll('span')).forEach(s => s.classList.remove('current'));
         span.classList.add('current');
         return;
       }
     } else {
-      // Normal character: grade and advance
+      // Regular character: grade (correct/incorrect) and advance
       const isCorrect = eqExpected(key, expected);
       applyGrade(span, isCorrect);
       span.classList.remove('current');
       currentIndex++;
     }
 
-    if (currentIndex < spans.length) {
-      spans[currentIndex].classList.add('current');
+    // Move caret / possibly load new sentence
+    const fresh = sentenceEl.querySelectorAll('span');
+    if (currentIndex < fresh.length) {
+      fresh[currentIndex].classList.add('current');
     } else {
       const timeLeft = parseInt(timerEl.textContent, 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
