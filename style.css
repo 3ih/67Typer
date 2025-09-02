@@ -6,6 +6,22 @@ body{
   background-repeat:no-repeat !important;
   background-size:cover !important;
 }
+*{outline:none}
+
+/* keep these */
+html,body{height:100%;margin:0}
+body{
+  background:url('./animated.gif') center/cover no-repeat; /* correct path */
+  position:relative;
+}
+
+/* fade */
+body::after{
+  content:"";
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.4); /* increase toward 1.0 to darken more */
+  pointer-events:none;
+}
 
 /* ---------- Base fixes ---------- */
 *,
@@ -324,6 +340,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
