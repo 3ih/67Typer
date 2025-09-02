@@ -2,7 +2,6 @@ import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-  let sentence = "";
   let currentIndex = 0;
   let timeLimit = 10;
   let timer;
@@ -12,13 +11,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // Session-wide keystroke results: 1 = correct, 0 = incorrect
   const grades = [];
 
-  // Toggle to accept case-insensitive typing if you want
+  // Case-sensitivity toggle
   const CASE_SENSITIVE = true;
 
   const sentenceEl = document.getElementById('sentence');
   const timerEl = document.getElementById('timer');
   const timeProgress = document.getElementById('timeProgress');
   const finalStats = document.getElementById('finalStats');
+
+  // Make sure extras/spaces always render as typed
+  sentenceEl.style.whiteSpace = 'pre-wrap';
 
   /* === MODE TOGGLE === */
   let mode = 'words'; // 'words' | 'sentences'
@@ -88,10 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const span = document.createElement('span');
     const isDisplaySpace = (char === '\u00A0');
     span.textContent = isDisplaySpace ? '\u00A0' : char;
-    // Store the *actual* expected key (space = ' ')
-    span.dataset.expected = isDisplaySpace ? ' ' : char;
-    span.dataset.graded = "0";
-    span.dataset.extra = "0"; // extras we insert will set this to "1"
+    span.dataset.expected = isDisplaySpace ? ' ' : char; // exact expected key
+    span.dataset.graded = "0"; // 0 = not graded yet, 1 = graded
+    span.dataset.extra = "0";  // 1 = this node is an inserted extra char
     if (isCurrent) span.classList.add('current');
     return span;
   }
@@ -111,8 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function generateSentence() {
+    let sentence = "";
     if (mode === 'words') {
-      sentence = "";
       let lastWord = "";
       while (sentence.replace(/\s/g, '').length < 75) {
         const word = Math.random() < 0.25
@@ -180,7 +181,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function restartGame() {
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.style.display = 'none';
-
     gameActive = false;
     grades.length = 0;
 
@@ -198,73 +198,72 @@ document.addEventListener("DOMContentLoaded", () => {
   function applyGrade(span, isCorrect) {
     if (span.dataset.graded === "1") return;
     span.dataset.graded = "1";
-    if (isCorrect) {
-      span.classList.add('correct');
-    } else {
-      span.classList.add('incorrect');
-    }
+    span.classList.add(isCorrect ? 'correct' : 'incorrect');
     grades.push(isCorrect ? 1 : 0);
   }
 
   function undoGrade(span) {
     if (span.dataset.graded !== "1") return;
-    // If it's an extra char we created, remove it from DOM entirely
     const wasExtra = span.dataset.extra === "1";
     span.dataset.graded = "0";
     span.classList.remove('correct', 'incorrect');
-
     if (grades.length > 0) grades.pop();
-
-    if (wasExtra && span.parentNode) {
-      span.parentNode.removeChild(span);
-    }
+    if (wasExtra && span.parentNode) span.parentNode.removeChild(span);
   }
 
-  // Create an inline red "extra" span (wrong char typed when space expected)
-  function insertExtraBefore(targetSpan, char) {
+  // Always-visible extra (red) span inserted before the space
+  function insertExtraBefore(targetSpaceSpan, char) {
     const extra = document.createElement('span');
     extra.textContent = char;
-    extra.dataset.expected = '';     // not an expected char
-    extra.dataset.graded = "1";
+    extra.dataset.expected = '';     // not part of expected string
+    extra.dataset.graded = "1";      // immediately graded as incorrect
     extra.dataset.extra = "1";
     extra.classList.add('incorrect');
-    // force visible red in case there's no CSS
+    // Force visibility regardless of site CSS:
     extra.style.color = 'red';
-    // insert just before the space so it appears at end of the word
-    targetSpan.parentNode.insertBefore(extra, targetSpan);
+    extra.style.display = 'inline-block';
+    extra.style.lineHeight = '1em';
+    extra.style.margin = '0';
+    extra.style.padding = '0';
+    targetSpaceSpan.parentNode.insertBefore(extra, targetSpaceSpan);
     grades.push(0);
     return extra;
   }
 
   // ---------- Input handling ----------
   document.addEventListener('keydown', (e) => {
-    // Start timer on first printable
+    // Start timer on first printable key (and also grade that same key)
     if (!gameActive && !startTime && isPrintableKey(e)) {
       const k = normalizeKey(e);
       if (k !== null) {
         gameActive = true;
         startTime = Date.now();
         startTimer();
+        // Do NOT return here — we still want this keystroke to grade below.
       }
     } else if (!gameActive && e.key !== 'Backspace') {
       return;
     }
 
-    const spans = sentenceEl.querySelectorAll('span');
-    const span = spans[currentIndex];
+    // Always work with a fresh snapshot in case DOM changed
+    let spans = sentenceEl.querySelectorAll('span');
+    let span = spans[currentIndex];
     if (!span) return;
 
-    // Backspace removes last graded char; if it's an extra, we delete the node
+    // Backspace: undo the most recent graded node
     if (e.key === 'Backspace') {
       e.preventDefault();
       if (currentIndex > 0) {
+        // After inserts, the extra sits right before the space,
+        // so prev index is correct.
         const prev = spans[currentIndex - 1];
         undoGrade(prev);
         currentIndex--;
-        // Caret on new current
-        Array.from(sentenceEl.querySelectorAll('span')).forEach(s => s.classList.remove('current'));
-        const fresh = sentenceEl.querySelectorAll('span');
-        if (fresh[currentIndex]) fresh[currentIndex].classList.add('current');
+
+        // Refresh caret and span snapshot after possible DOM removal
+        spans = sentenceEl.querySelectorAll('span');
+        spans.forEach(s => s.classList.remove('current'));
+        if (spans[currentIndex]) spans[currentIndex].classList.add('current');
       }
       return;
     }
@@ -275,34 +274,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    // If the expected is a space:
-    // - Real space: grade correct & advance
-    // - Any other printable: insert a red "extra" letter before the space (incorrect) and DO NOT advance
+    // If the expected char is a SPACE:
     if (expected === ' ') {
       if (key === ' ') {
+        // Correct space: grade & advance
         applyGrade(span, true);
         span.classList.remove('current');
         currentIndex++;
       } else {
-        // Insert red extra letter before the space and keep caret on the space
+        // Wrong key at space: insert visible red extra before the space
         insertExtraBefore(span, key);
-        // Keep caret on the space (no advance). Refresh current class.
-        Array.from(sentenceEl.querySelectorAll('span')).forEach(s => s.classList.remove('current'));
-        span.classList.add('current');
-        return;
+        // Keep caret on the same space; refresh snapshot/classes so user sees it immediately
+        spans = sentenceEl.querySelectorAll('span');
+        spans.forEach(s => s.classList.remove('current'));
+        // currentIndex still points to the space (which is now at +1 index from the extra we inserted)
+        if (spans[currentIndex]) spans[currentIndex].classList.add('current');
+        return; // do not advance
       }
     } else {
-      // Regular character: grade (correct/incorrect) and advance
+      // Normal character: grade (correct/incorrect) and advance
       const isCorrect = eqExpected(key, expected);
       applyGrade(span, isCorrect);
       span.classList.remove('current');
       currentIndex++;
     }
 
-    // Move caret / possibly load new sentence
-    const fresh = sentenceEl.querySelectorAll('span');
-    if (currentIndex < fresh.length) {
-      fresh[currentIndex].classList.add('current');
+    // Advance caret or load next sentence
+    spans = sentenceEl.querySelectorAll('span');
+    if (currentIndex < spans.length) {
+      spans[currentIndex].classList.add('current');
     } else {
       const timeLeft = parseInt(timerEl.textContent, 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
