@@ -23,8 +23,6 @@ body::after {
   background:rgba(0,0,0,0.3); /* increase to 0.6 for darker */
   pointer-events:none;        /* overlay won’t block clicks */
 }
-.container{background:transparent}
-#overlay{background:rgba(0,0,0,.6);display:none}
 
 @font-face {
   font-family: 'Rocket Command';
@@ -336,6 +334,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
