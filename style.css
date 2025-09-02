@@ -3,6 +3,13 @@
 *::before,
 *::after { box-sizing: border-box; }
 
+body {
+  background-image: url('animated-background.gif');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
 @font-face {
   font-family: 'Rocket Command';
   src: url('fonts/rocket-command-font/RocketCommand-OG5D8.otf') format('opentype');
@@ -313,5 +320,6 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
