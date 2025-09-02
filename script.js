@@ -8,8 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let timer;
   let startTime;
   let gameActive = false;
-  let correctChars = 0;
-  let totalTyped = 0;
+
+  // Per-session tallies (do NOT rely on DOM)
+  let sessionCorrect = 0;
+  let sessionTotal = 0;
 
   const sentenceEl = document.getElementById('sentence');
   const timerEl = document.getElementById('timer');
@@ -49,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (mode === 'words') {
       sentence = "";
       let lastWord = "";
-      while (sentence.replace(/\s/g,'').length < 75) {
+      while (sentence.replace(/\s/g, '').length < 75) {
         let word = Math.random() < 0.25
           ? smallWords[Math.floor(Math.random() * smallWords.length)]
           : dictionary[Math.floor(Math.random() * dictionary.length)];
@@ -75,6 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
           const span = document.createElement('span');
           span.textContent = char;
           if (isFirstLine && wIdx === 0 && i === 0) span.classList.add('current');
+          // mark as not yet graded so backspace logic is reliable
+          span.dataset.graded = "0";
+          span.dataset.correct = "0";
           lineContainer.appendChild(span);
         });
         const isLastInThisLine = wIdx === lineWords.length - 1;
@@ -82,6 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (shouldAddSpace) {
           const space = document.createElement('span');
           space.textContent = '\u00A0';
+          space.dataset.graded = "0";
+          space.dataset.correct = "0";
           lineContainer.appendChild(space);
         }
       });
@@ -124,9 +131,11 @@ document.addEventListener("DOMContentLoaded", () => {
     gameActive = false;
     clearInterval(timer);
 
-    const wpm = Math.round((correctChars / 5) / ((Date.now() - startTime) / 60000));
-    // Use tracked totals across the whole session (including spaces)
-    const accuracy = totalTyped ? Math.round((correctChars / totalTyped) * 100) : 0;
+    // WPM based on correct chars only
+    const wpm = Math.round((sessionCorrect / 5) / ((Date.now() - startTime) / 60000));
+
+    // Accuracy across WHOLE session (all sentences)
+    const accuracy = sessionTotal ? Math.round((sessionCorrect / sessionTotal) * 100) : 0;
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
     document.getElementById('overlay').style.display = 'flex';
@@ -137,8 +146,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (overlay) overlay.style.display = 'none';
 
     gameActive = false;
-    correctChars = 0;
-    totalTyped = 0;
+
+    // Reset session counters ONLY when restarting a game
+    sessionCorrect = 0;
+    sessionTotal = 0;
+
     generateSentence();
     startTime = null;
     timeProgress.style.width = '100%';
@@ -150,6 +162,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function manualRestart() {
     restartGame();
+  }
+
+  // Helpers to grade/undo a single span safely
+  function applyGrade(span, isCorrect) {
+    if (span.dataset.graded === "1") return; // already counted
+    span.dataset.graded = "1";
+    span.dataset.correct = isCorrect ? "1" : "0";
+    span.classList.add(isCorrect ? 'correct' : 'incorrect');
+    sessionTotal++;
+    if (isCorrect) sessionCorrect++;
+  }
+
+  function undoGrade(span) {
+    if (span.dataset.graded !== "1") return; // nothing to undo
+    const wasCorrect = span.dataset.correct === "1";
+    sessionTotal = Math.max(0, sessionTotal - 1);
+    if (wasCorrect) sessionCorrect = Math.max(0, sessionCorrect - 1);
+    span.dataset.graded = "0";
+    span.dataset.correct = "0";
+    span.classList.remove('correct', 'incorrect');
   }
 
   document.addEventListener('keydown', (e) => {
@@ -170,36 +202,31 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Backspace") {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
-
-        // If the previous char is a space we now undo the counts for it too
-        if (prev.textContent === '\u00A0') {
-          if (prev.classList.contains('correct')) {
-            correctChars = Math.max(0, correctChars - 1);
-            totalTyped  = Math.max(0, totalTyped - 1);
-          }
-        } else {
-          if (prev.classList.contains('correct')) {
-            correctChars = Math.max(0, correctChars - 1);
-          }
-          if (prev.classList.contains('correct') || prev.classList.contains('incorrect')) {
-            totalTyped = Math.max(0, totalTyped - 1);
-          }
-        }
+        // Only undo if it was graded
+        undoGrade(prev);
 
         currentIndex--;
-        prev.classList.remove('correct', 'incorrect');
         spans.forEach(span => span.classList.remove('current'));
         spans[currentIndex].classList.add('current');
       }
       return;
     }
 
-    // Space handling: count it as a typed, correct character
+    // Space handling
     if (currentChar === '\u00A0') {
       if (e.key === ' ') {
-        totalTyped++;
-        correctChars++;
-        spans[currentIndex].classList.add('correct');
+        applyGrade(spans[currentIndex], true); // space is only "correct" if space pressed
+        spans[currentIndex].classList.remove('current');
+        currentIndex++;
+        if (currentIndex < spans.length) {
+          spans[currentIndex].classList.add('current');
+        } else {
+          const timeLeft = parseInt(timerEl.textContent, 10) || 0;
+          if (gameActive && timeLeft > 0) generateSentence();
+        }
+      } else {
+        // wrong key on a space
+        applyGrade(spans[currentIndex], false);
         spans[currentIndex].classList.remove('current');
         currentIndex++;
         if (currentIndex < spans.length) {
@@ -212,13 +239,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    totalTyped++;
+    // Regular character
     if (e.key === currentChar) {
-      spans[currentIndex].classList.add('correct');
-      correctChars++;
+      applyGrade(spans[currentIndex], true);
     } else {
-      spans[currentIndex].classList.add('incorrect');
+      applyGrade(spans[currentIndex], false);
     }
+
     spans[currentIndex].classList.remove('current');
     currentIndex++;
 
