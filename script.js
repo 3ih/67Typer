@@ -2,14 +2,13 @@ import { dictionary, smallWords } from './dictionary.js';
 import { sentenceBank } from './sentences.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-  let currentIndex = 0;
   let timeLimit = 10;
   let timer;
   let startTime;
   let gameActive = false;
 
-  // Session-wide keystroke results: 1 = correct, 0 = incorrect
-  const grades = [];
+  // session-wide accuracy/WPM
+  const grades = []; // 1 = correct, 0 = incorrect
   const CASE_SENSITIVE = true;
 
   const sentenceEl = document.getElementById('sentence');
@@ -17,10 +16,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeProgress = document.getElementById('timeProgress');
   const finalStats = document.getElementById('finalStats');
 
+  // Make spacing/extras render predictably
   sentenceEl.style.whiteSpace = 'pre-wrap';
 
+  // Inject a caret that’s drawn as a pseudo-element on .current
+  const caretStyle = document.createElement('style');
+  caretStyle.textContent = `
+    #sentence span.current { position: relative; }
+    #sentence span.current::before {
+      content: ""; position: absolute; left: -1px; top: 0; bottom: 0;
+      width: 2px; background: currentColor;
+    }
+  `;
+  document.head.appendChild(caretStyle);
+
   /* ========= Mode ========= */
-  let mode = 'words';
+  let mode = 'words'; // 'words' | 'sentences'
   function updateModeButtonsActive() {
     const w = document.getElementById('modeWordsBtn');
     const s = document.getElementById('modeSentencesBtn');
@@ -62,8 +73,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const isDisplaySpace=(char==='\u00A0');
     span.textContent=isDisplaySpace?'\u00A0':char;
     span.dataset.expected=isDisplaySpace?' ':char; // exact key required
-    span.dataset.graded="0";
-    span.dataset.extra="0";
+    span.dataset.graded="0";  // 1 = graded
+    span.dataset.extra="0";   // 1 = inserted extra
     return span;
   }
   function createLine(lineWords, isFirstLine){
@@ -75,6 +86,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (addSpace) line.appendChild(createCharSpan('\u00A0'));
     });
     return line;
+  }
+
+  let currentSpan = null; // ← single source of truth for caret position
+
+  function setCurrentSpan(node){
+    // put the "caret" before node by marking it current
+    const all = sentenceEl.querySelectorAll('span');
+    all.forEach(s => s.classList.remove('current'));
+    if (node && node.isConnected) {
+      node.classList.add('current');
+      currentSpan = node;
+    } else {
+      currentSpan = null;
+    }
+  }
+
+  function nextSpan(node){
+    // find next <span> in document order (across both lines)
+    const all = [...sentenceEl.querySelectorAll('span')];
+    const i = all.indexOf(node);
+    return (i >= 0 && i + 1 < all.length) ? all[i + 1] : null;
+  }
+
+  function prevSpan(node){
+    const all = [...sentenceEl.querySelectorAll('span')];
+    const i = all.indexOf(node);
+    return (i > 0) ? all[i - 1] : null;
   }
 
   function generateSentence(){
@@ -98,8 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
     sentenceEl.innerHTML = "";
     sentenceEl.appendChild(createLine(words.slice(0, mid), true));
     sentenceEl.appendChild(createLine(words.slice(mid), false));
-    currentIndex = 0;
-    placeCaretBeforeIndex(currentIndex);
+
+    // caret before very first span
+    setCurrentSpan(sentenceEl.querySelector('span'));
   }
 
   /* ========= Timer / end ========= */
@@ -133,22 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function manualRestart(){ restartGame(); }
 
-  /* ========= Caret shim (EXCLUDED from queries) ========= */
-  const caret = document.createElement('span');
-  caret.dataset.caret = '1'; // <-- identify caret
-  Object.assign(caret.style, {
-    display:'inline-block', width:'0', borderLeft:'2px solid currentColor', height:'1em', transform:'translateY(2px)'
-  });
-
-  // Only character/space/extra spans (never the caret)
-  function charSpans(){ return sentenceEl.querySelectorAll('span:not([data-caret="1"])'); }
-
-  function placeCaretBeforeIndex(idx){
-    const spans = charSpans();
-    if (idx >= spans.length) { sentenceEl.appendChild(caret); }
-    else { spans[idx].parentNode.insertBefore(caret, spans[idx]); }
-  }
-
   /* ========= Grading ========= */
   function applyGrade(span, ok){
     if (span.dataset.graded === "1") return;
@@ -168,10 +191,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const extra = document.createElement('span');
     extra.textContent = char;
     extra.dataset.expected = '';
-    extra.dataset.graded = '1';     // count immediately as incorrect
-    extra.dataset.extra = '1';
+    extra.dataset.graded = '1';     // immediately counted incorrect
+    extra.dataset.extra  = '1';
     extra.classList.add('incorrect');
-    extra.style.color = 'red';
+    extra.style.color = 'red';      // force visible
     extra.style.display = 'inline-block';
     extra.style.lineHeight = '1em';
     spaceSpan.parentNode.insertBefore(extra, spaceSpan);
@@ -179,9 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return extra;
   }
 
-  /* ========= Input handling ========= */
+  /* ========= Input handling (node-pointer, not indexes) ========= */
   document.addEventListener('keydown', (e) => {
-    // Start timer on first printable (and still handle that key below)
+    if (!currentSpan) return;
+
+    // Start timer on first printable (still handle this keystroke)
     if (!gameActive && !startTime && isPrintableKey(e)) {
       const k = normalizeKey(e);
       if (k !== null) { gameActive = true; startTime = Date.now(); startTimer(); }
@@ -189,19 +214,19 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    let spans = charSpans();
-    let span = spans[currentIndex];
-    if (!span) return;
-
-    // Backspace: always operate on the node immediately LEFT of caret
+    // Backspace → always operate on the node just before currentSpan
     if (e.key === 'Backspace') {
       e.preventDefault();
-      if (currentIndex > 0) {
-        const targetIndex = currentIndex - 1;
-        const prev = spans[targetIndex];
-        undoGrade(prev);
-        currentIndex = targetIndex;        // caret sits BEFORE the node now at targetIndex
-        placeCaretBeforeIndex(currentIndex);
+      const prev = prevSpan(currentSpan);
+      if (!prev) return;
+      undoGrade(prev);
+
+      // If prev still exists (normal char), caret should be BEFORE prev
+      // If prev was an extra and got removed, caret stays before currentSpan (the same node)
+      if (prev.isConnected) {
+        setCurrentSpan(prev);
+      } else {
+        setCurrentSpan(currentSpan); // unchanged (typically a space)
       }
       return;
     }
@@ -210,33 +235,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if (key === null) return;
     e.preventDefault();
 
-    const expected = (span.dataset.expected || '').normalize('NFKC');
+    const expected = (currentSpan.dataset.expected || '').normalize('NFKC');
 
-    // Space expected
     if (expected === ' ') {
       if (key === ' ') {
-        applyGrade(span, true);
-        currentIndex++;
-        placeCaretBeforeIndex(currentIndex);
+        // correct space → grade & move to next node
+        applyGrade(currentSpan, true);
+        const nxt = nextSpan(currentSpan);
+        setCurrentSpan(nxt);
       } else {
-        // Insert red extra BEFORE the space and keep caret before the space
-        insertExtraBefore(span, key);
-        // Space moved right by +1 among *char spans* → recompute its index
-        spans = charSpans();
-        const newSpaceIndex = Array.prototype.indexOf.call(spans, span);
-        currentIndex = newSpaceIndex;
-        placeCaretBeforeIndex(currentIndex);
-        return;
+        // wrong key at a space → insert red extra BEFORE the space; caret stays on the space
+        insertExtraBefore(currentSpan, key);
+        setCurrentSpan(currentSpan); // keep caret before the space (between extras and the space)
       }
-    } else {
-      // Normal character
-      applyGrade(span, eqExpected(key, expected));
-      currentIndex++;
-      placeCaretBeforeIndex(currentIndex);
+      return;
     }
 
-    // Next sentence if finished
-    if (currentIndex >= charSpans().length) {
+    // Normal character
+    applyGrade(currentSpan, eqExpected(key, expected));
+    const nxt = nextSpan(currentSpan);
+    setCurrentSpan(nxt);
+
+    // If we finished all spans, load next sentence (time permitting)
+    if (!currentSpan) {
       const timeLeft = parseInt(timerEl.textContent || '0', 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
     }
