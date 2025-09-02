@@ -9,10 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let startTime;
   let gameActive = false;
 
-  // Accuracy/WPM over the whole session
+  // Session-wide accuracy/WPM
   const grades = []; // 1 = correct, 0 = incorrect
 
-  // Set to false if you want 'a' and 'A' to be accepted interchangeably
+  // Case sensitivity toggle (set to false if you want 'a' to match 'A')
   const CASE_SENSITIVE = true;
 
   const sentenceEl = document.getElementById('sentence');
@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* === MODE TOGGLE === */
   let mode = 'words'; // 'words' | 'sentences'
-
   function updateModeButtonsActive() {
     const w = document.getElementById('modeWordsBtn');
     const s = document.getElementById('modeSentencesBtn');
@@ -46,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --------- Universal key normalization ----------
+  // ---------- Key normalization ----------
   const SPACE_CHARS = new Set([
     ' ', '\u00A0', '\u1680', '\u2000', '\u2001', '\u2002', '\u2003',
     '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009',
@@ -54,45 +53,37 @@ document.addEventListener("DOMContentLoaded", () => {
   ]);
 
   function isPrintableKey(e) {
-    // Ignore modifier combos and IME/dead keys
     if (e.ctrlKey || e.metaKey || e.altKey) return false;
     if (e.key === 'Dead' || e.key === 'Compose') return false;
     return true;
   }
 
-  // Return a single normalized character to compare against expected,
-  // or null to ignore the event
+  // Return single normalized character or null to ignore
   function normalizeKey(e) {
     if (!isPrintableKey(e)) return null;
 
-    // Treat any kind of space (by key string, code, or weird Unicode) as ' '
-    if (e.code === 'Space') return ' ';
-    if (e.key === 'Spacebar') return ' '; // older browsers
+    // Any “space-like” input becomes ' '
+    if (e.code === 'Space' || e.key === 'Spacebar') return ' ';
     if (SPACE_CHARS.has(e.key)) return ' ';
 
-    // For typical printable keys, we want a single character
-    // Normalize Unicode (e.g., NFKC to fold compatibility chars)
+    // Typical printable
     if (typeof e.key === 'string' && e.key.length === 1) {
       const nk = e.key.normalize('NFKC');
       if (nk.length === 1) return nk;
     }
 
-    // Some layouts/browsers report unnamed printables as 'Unidentified'
-    // Try mapping from e.code for numpad digits/period:
-    // (Optional) Add more mappings if needed.
+    // Fallback for some numpad cases
     if (e.key === 'Unidentified') {
-      // Examples: NumpadDecimal -> '.', NumpadComma -> ','
       if (e.code === 'NumpadDecimal') return '.';
       if (e.code === 'NumpadComma') return ',';
       const m = /^Numpad([0-9])$/.exec(e.code || '');
       if (m) return m[1];
     }
 
-    return null; // not something we grade
+    return null;
   }
 
   function eqExpected(inputChar, expectedChar) {
-    // Both may be single characters; expectedChar is what we stored
     if (!CASE_SENSITIVE) {
       return inputChar.toLocaleLowerCase() === expectedChar.toLocaleLowerCase();
     }
@@ -103,12 +94,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function createCharSpan(char, isCurrent = false) {
     const span = document.createElement('span');
 
-    // We SHOW NBSP between words for layout wrapping, but
-    // we EXPECT a *real* space ' ' as input.
+    // Show NBSP for layout, but EXPECT a real space ' ' from keyboard
     const isDisplaySpace = (char === '\u00A0');
     span.textContent = isDisplaySpace ? '\u00A0' : char;
 
-    // Store EXACT expected key (single char)
+    // Store the exact expected key (single char)
     span.dataset.expected = isDisplaySpace ? ' ' : char;
     span.dataset.graded = "0";
     if (isCurrent) span.classList.add('current');
@@ -124,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const isLastInThisLine = wIdx === lineWords.length - 1;
       const shouldAddSpace = isFirstLine ? true : !isLastInThisLine;
-      if (shouldAddSpace) line.appendChild(createCharSpan('\u00A0'));
+      if (shouldAddSpace) line.appendChild(createCharSpan('\u00A0')); // display NBSP, expect ' '
     });
     return line;
   }
@@ -212,9 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateModeButtonsActive();
   }
 
-  function manualRestart() {
-    restartGame();
-  }
+  function manualRestart() { restartGame(); }
 
   // ---------- Grading helpers ----------
   function applyGrade(span, isCorrect) {
@@ -233,9 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Input handling ----------
   document.addEventListener('keydown', (e) => {
-    const spans = sentenceEl.querySelectorAll('span');
-
-    // Start timer on first printable key
+    // Start timer on first printable
     if (!gameActive && !startTime && isPrintableKey(e)) {
       const k = normalizeKey(e);
       if (k !== null) {
@@ -247,10 +233,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const spans = sentenceEl.querySelectorAll('span');
     const span = spans[currentIndex];
     if (!span) return;
 
-    // Backspace: undo previous graded char
+    // Backspace: undo previous graded char (if any)
     if (e.key === 'Backspace') {
       e.preventDefault();
       if (currentIndex > 0) {
@@ -269,21 +256,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    const isCorrect = eqExpected(key, expected);
-
-    // Sticky spaces: if expected is a space and they didn't press space,
-    // mark incorrect but DO NOT advance.
-    if (expected === ' ' && key !== ' ') {
-      applyGrade(span, false);
-      spans.forEach(s => s.classList.remove('current'));
-      span.classList.add('current');
-      return;
+    // If expected is a space, ONLY a real space advances; wrong keys do nothing
+    if (expected === ' ') {
+      if (key === ' ') {
+        applyGrade(span, true);
+        span.classList.remove('current');
+        currentIndex++;
+      } else {
+        // wrong key on a space: do NOT grade, do NOT advance
+        spans.forEach(s => s.classList.remove('current'));
+        span.classList.add('current');
+        return;
+      }
+    } else {
+      // Normal character: grade and advance
+      const isCorrect = eqExpected(key, expected);
+      applyGrade(span, isCorrect);
+      span.classList.remove('current');
+      currentIndex++;
     }
-
-    // Grade and advance for everything else
-    applyGrade(span, isCorrect);
-    span.classList.remove('current');
-    currentIndex++;
 
     if (currentIndex < spans.length) {
       spans[currentIndex].classList.add('current');
