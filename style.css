@@ -4,7 +4,7 @@
 *::after { box-sizing: border-box; }
 
 body {
-  background-image: url('animated-background.gif');
+  background-image: url('starrynight.gif');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -320,6 +320,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
