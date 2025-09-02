@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeProgress = document.getElementById('timeProgress');
   const finalStats = document.getElementById('finalStats');
 
-  // Make spacing/extras render predictably
   sentenceEl.style.whiteSpace = 'pre-wrap';
 
   /* ========= Mode ========= */
@@ -113,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
       timerEl.textContent = `${timeLeft}`;
       timeProgress.style.width = (timeLeft / timeLimit * 100) + '%';
       if (timeLeft <= 0) { clearInterval(timer); endGame(); }
-    }, 1000);
+    },1000);
   }
   function endGame(){
     if (!gameActive) return;
@@ -123,25 +122,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const total = grades.length;
     const acc = total ? Math.round((correctCount/total)*100) : 0;
     finalStats.textContent = `You had ${wpm} WPM with ${acc}% accuracy!`;
-    const overlay = document.getElementById('overlay'); if (overlay) overlay.style.display = 'flex';
+    const overlay=document.getElementById('overlay'); if (overlay) overlay.style.display='flex';
   }
   function restartGame(){
-    const overlay = document.getElementById('overlay'); if (overlay) overlay.style.display = 'none';
-    gameActive = false; grades.length = 0;
-    generateSentence(); startTime = null;
-    timeProgress.style.width = '100%'; timerEl.textContent = `${timeLimit}`;
+    const overlay=document.getElementById('overlay'); if (overlay) overlay.style.display='none';
+    gameActive=false; grades.length=0;
+    generateSentence(); startTime=null;
+    timeProgress.style.width='100%'; timerEl.textContent=`${timeLimit}`;
     clearInterval(timer); updateModeButtonsActive();
   }
   function manualRestart(){ restartGame(); }
 
-  /* ========= Caret shim ========= */
+  /* ========= Caret shim (EXCLUDED from queries) ========= */
   const caret = document.createElement('span');
+  caret.dataset.caret = '1'; // <-- identify caret
   Object.assign(caret.style, {
     display:'inline-block', width:'0', borderLeft:'2px solid currentColor', height:'1em', transform:'translateY(2px)'
   });
-  function spansAll(){ return sentenceEl.querySelectorAll('span'); }
+
+  // Only character/space/extra spans (never the caret)
+  function charSpans(){ return sentenceEl.querySelectorAll('span:not([data-caret="1"])'); }
+
   function placeCaretBeforeIndex(idx){
-    const spans = spansAll();
+    const spans = charSpans();
     if (idx >= spans.length) { sentenceEl.appendChild(caret); }
     else { spans[idx].parentNode.insertBefore(caret, spans[idx]); }
   }
@@ -159,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
     span.dataset.graded = "0";
     span.classList.remove('correct','incorrect');
     if (grades.length > 0) grades.pop();
-    if (wasExtra && span.parentNode) span.parentNode.removeChild(span); // extras get removed
+    if (wasExtra && span.parentNode) span.parentNode.removeChild(span);
   }
   function insertExtraBefore(spaceSpan, char){
     const extra = document.createElement('span');
@@ -173,6 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     extra.style.lineHeight = '1em';
     spaceSpan.parentNode.insertBefore(extra, spaceSpan);
     grades.push(0);
+    return extra;
   }
 
   /* ========= Input handling ========= */
@@ -185,21 +189,18 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    let spans = spansAll();
+    let spans = charSpans();
     let span = spans[currentIndex];
     if (!span) return;
 
-    // --- Backspace: ALWAYS move caret one slot left and keep it there ---
+    // Backspace: always operate on the node immediately LEFT of caret
     if (e.key === 'Backspace') {
       e.preventDefault();
       if (currentIndex > 0) {
         const targetIndex = currentIndex - 1;
         const prev = spans[targetIndex];
         undoGrade(prev);
-        // After undo:
-        // - if prev was a normal letter: it still exists (ungraded). Caret should sit BEFORE it.
-        // - if prev was an extra: it was removed; caret should sit BEFORE whatever is now at targetIndex (usually the space).
-        currentIndex = targetIndex;
+        currentIndex = targetIndex;        // caret sits BEFORE the node now at targetIndex
         placeCaretBeforeIndex(currentIndex);
       }
       return;
@@ -211,31 +212,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const expected = (span.dataset.expected || '').normalize('NFKC');
 
-    // --- Space expected ---
+    // Space expected
     if (expected === ' ') {
       if (key === ' ') {
         applyGrade(span, true);
         currentIndex++;
         placeCaretBeforeIndex(currentIndex);
       } else {
-        // Insert extra and keep caret BETWEEN extras and the space
+        // Insert red extra BEFORE the space and keep caret before the space
         insertExtraBefore(span, key);
-        // The space just shifted right by +1 => recompute its index and pin caret before it
-        spans = spansAll();
+        // Space moved right by +1 among *char spans* → recompute its index
+        spans = charSpans();
         const newSpaceIndex = Array.prototype.indexOf.call(spans, span);
-        currentIndex = newSpaceIndex;            // sit before the space
+        currentIndex = newSpaceIndex;
         placeCaretBeforeIndex(currentIndex);
         return;
       }
     } else {
-      // --- Normal character ---
+      // Normal character
       applyGrade(span, eqExpected(key, expected));
       currentIndex++;
       placeCaretBeforeIndex(currentIndex);
     }
 
     // Next sentence if finished
-    if (currentIndex >= spansAll().length) {
+    if (currentIndex >= charSpans().length) {
       const timeLeft = parseInt(timerEl.textContent || '0', 10) || 0;
       if (gameActive && timeLeft > 0) generateSentence();
     }
