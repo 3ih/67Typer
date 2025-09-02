@@ -125,8 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     clearInterval(timer);
 
     const wpm = Math.round((correctChars / 5) / ((Date.now() - startTime) / 60000));
-
-    // Use tracked totals across the whole session
+    // Use tracked totals across the whole session (including spaces)
     const accuracy = totalTyped ? Math.round((correctChars / totalTyped) * 100) : 0;
 
     finalStats.textContent = `You had ${wpm} WPM with ${accuracy}% accuracy!`;
@@ -172,7 +171,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentIndex > 0) {
         const prev = spans[currentIndex - 1];
 
-        if (prev.textContent !== '\u00A0') {
+        // If the previous char is a space we now undo the counts for it too
+        if (prev.textContent === '\u00A0') {
+          if (prev.classList.contains('correct')) {
+            correctChars = Math.max(0, correctChars - 1);
+            totalTyped  = Math.max(0, totalTyped - 1);
+          }
+        } else {
           if (prev.classList.contains('correct')) {
             correctChars = Math.max(0, correctChars - 1);
           }
@@ -189,8 +194,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Space handling: count it as a typed, correct character
     if (currentChar === '\u00A0') {
       if (e.key === ' ') {
+        totalTyped++;
+        correctChars++;
         spans[currentIndex].classList.add('correct');
         spans[currentIndex].classList.remove('current');
         currentIndex++;
@@ -232,5 +240,3 @@ document.addEventListener("DOMContentLoaded", () => {
   window.restartGame = restartGame;
   window.setMode = setMode;
 });
-
-
