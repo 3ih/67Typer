@@ -110,7 +110,6 @@ h1 {
   overflow: hidden;
   position: relative;
   margin: 0 auto 20px;
-  transform: translateX(-40px);
 }
 #timeProgress {
   height: 100%;
@@ -317,6 +316,7 @@ span { display: inline-block; transition: all 0.2s ease; }
   #timer { font-size: 40px; }
   #wrapleaderboard { width: 92vw; height: 360px; }
 }
+
 
 
 
